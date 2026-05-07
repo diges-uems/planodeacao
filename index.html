@@ -8,9 +8,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
     
-    <!-- Biblioteca para Download Direto de PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    
     <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','sans-serif']},colors:{uems:{blue:'#00338C',dark:'#002255'}}}}}</script>
     <style>
         .bg-polka{position:fixed;inset:0;z-index:-1;background:radial-gradient(#e5e7eb 1px,transparent 1px);background-size:16px 16px;opacity:0.5}
@@ -154,14 +151,14 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="edit-data-reuniao">11. Data de Reunião (CDE, Autoavaliação e Comitê ENADE)</label><input type="text" id="edit-data-reuniao" class="input-uems font-bold" required></div><div><label for="edit-minuta">12. Minuta</label><input type="text" id="edit-minuta" class="input-uems font-bold" required></div></div>
         <div class="flex gap-3 pt-4 border-t mt-6"><button type="button" id="btn-cancel-edit" onclick="window.toggleModal('modal-editar', false)" class="flex-1 py-3 bg-slate-100 font-bold rounded-xl border">Cancelar</button><button type="button" id="btn-save-edit" onclick="window.saveEdit()" class="flex-1 py-3 bg-uems-blue text-white font-bold rounded-xl shadow-lg">Salvar Edição</button></div></form></div></div>
 
-    <!-- LÓGICA BLINDADA -->
+    <!-- LÓGICA BLINDADA E COMPATÍVEL COM FIREFOX E MOODLE -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // URL DA API DO GOOGLE APPS SCRIPT
             const API_URL="https://script.google.com/macros/s/AKfycbyZ1quKunjm0cqBrEgqhml6bRAxKLI_xnCgo1VnB2NF6VsyvGigJzamwzKi8HQydTx2kw/exec";
             let cart=[],userCourse=null,authMode='',dashboardData=[],currentPage=1;const ITEMS_PER_PAGE=25;
-            window.currentFilteredData = []; // Variável global para armazenar os dados do PDF
-            let selectedForPDF = new Set(); // Armazena as fragilidades selecionadas para exportação
+            window.currentFilteredData = []; 
+            let selectedForPDF = new Set(); 
             
             const COURSES={"Y3Vyc280NTU5OA==":"45598||Agronomia - Aquidauana","Y3Vyc28xNjE3MTEx":"1617111||Direito - Aquidauana","Y3Vyc28xMjM1NjI=":"123562||Engenharia Florestal - Aquidauana","Y3Vyc28xNzczNQ==":"17735||Zootecnia - Aquidauana","Y3Vyc28xNjYyMTE1":"1662115||Direito - Bataguassu","Y3Vyc28xNjEzOTU2":"1613956||Administração Pública - Campo Grande","Y3Vyc28xNjEzOTQ4":"1613948||Ciências Biológicas (Bacharelado) - Campo Grande","Y3Vyc28xNjU5OTQ0":"1659944||Direito - Campo Grande","Y3Vyc28xNjg2MzQ4":"1686348||Fonoaudiologia - Campo Grande","Y3Vyc28xNTAxMDQ=":"150104||Geografia (Licenciatura) - Campo Grande","Y3Vyc28xMzEzMzI2":"1313326||Geografia (Bacharelado) - Campo Grande","Y3Vyc28xNjEzOTQ3":"1613947||História - Campo Grande","Y3Vyc28xMTg5ODQ5":"1189849||Letras - Campo Grande","Y3Vyc28xNTAxMDU=":"150105||Letras - Português e Espanhol - Campo Grande","Y3Vyc28xNTAxMDY=":"150106||Letras - Português e Inglês - Campo Grande","Y3Vyc28xMzEzMzQx":"1313341||Medicina - Campo Grande","Y3Vyc28xMTMwNTI=":"113052||Pedagogia - Campo Grande","Y3Vyc28xNjEzOTUw":"1613950||Psicologia - Campo Grande","Y3Vyc281MDAwNDc2":"5000476||Turismo - Campo Grande","Y3Vyc281MTA0Mg==":"51042||Agronomia - Cassilândia","Y3Vyc28xNjE3MTEy":"1617112||Direito - Cassilândia","Y3Vyc284OTAyNA==":"89024||Letras - Português e Inglês - Cassilândia","Y3Vyc280NTcwMQ==":"45701||Matemática - Cassilândia","Y3Vyc28xNjEzOTQ5":"1613949||Psicologia - Coxim","Y3Vyc282ODMyMQ==":"68321||Ciência da Computação - Dourados","Y3Vyc281MDkzMw==":"50933||Ciências Biológicas (Licenciatura) - Dourados","Y3Vyc28xMTkwNjMx":"1190631||Ciências Biológicas (Bacharelado) - Dourados","Y3Vyc28xNzc2Ng==":"17766||Direito - Dourados","Y3Vyc28xNzc2OA==":"17768||Enfermagem - Dourados","Y3Vyc28xMTE3OTMz":"1117933||Engenharia Ambiental e Sanitária - Dourados","Y3Vyc28xNTAxMDM=":"150103||Engenharia Física - Dourados","Y3Vyc28xMDU5Mjg=":"105928||Física - Dourados","Y3Vyc284OTAyMg==":"89022||Letras - Português e Espanhol - Dourados","Y3Vyc284OTAxOA==":"89018||Letras - Português e Inglês - Dourados","Y3Vyc282ODMxMw==":"68313||Matemática - Dourados","Y3Vyc28xMTMwNTg=":"113058||Pedagogia - Dourados","Y3Vyc281MDkzNQ==":"50935||Química - Dourados","Y3Vyc28xMjM1NjU=":"123565||Química Industrial - Dourados","Y3Vyc285NTcwNg==":"95706||Sistemas de Informação - Dourados","Y3Vyc280NTYwNQ==":"45605||Turismo - Dourados","Y3Vyc280NTcxMw==":"45713||Ciências Biológicas - Ivinhema","Y3Vyc28xNjEzOTQ2":"1613946||Direito - Jardim","Y3Vyc28xMDU3ODA=":"105780||Geografia - Jardim","Y3Vyc284OTAyOQ==":"89029||Letras - Português e Inglês - Jardim","Y3Vyc28xMTMwNDc=":"113047||Administração - Maracaju","Y3Vyc28xNTg3MDk0":"1587094||Agronomia - Maracaju","Y3Vyc28xMTMwNTQ=":"113054||Pedagogia - Maracaju","Y3Vyc28xNTg2NTk2":"1586596||Agronomia - Mundo Novo","Y3Vyc280NTcxNQ==":"45715||Ciências Biológicas - Mundo Novo","Y3Vyc281MDAwNDc1":"5000475||Gestão Ambiental - Mundo Novo","Y3Vyc282ODMxNQ==":"68315||Direito - Naviraí","Y3Vyc28xMzE0MjEw":"1314210||Engenharia de Alimentos - Naviraí","Y3Vyc281MTA0NA==":"51044||Química - Naviraí","Y3Vyc28xNjg5MjQ5":"1689249||Engenharia Civil - Nova Andradina","Y3Vyc280NTcwMw==":"45703||Matemática - Nova Andradina","Y3Vyc28xNTg1OTc1":"1585975||Sistemas de Informação - Nova Andradina","Y3Vyc28xMjM1ODg=":"123588||Ciências Sociais (Licenciatura) - Paranaíba","Y3Vyc28xMjY1ODYz":"1265863||Ciências Sociais (Bacharelado) - Paranaíba","Y3Vyc28xNzc2Mg==":"17762||Direito - Paranaíba","Y3Vyc28xMTMwNTY=":"113056||Pedagogia - Paranaíba","Y3Vyc28xMTMwNDU=":"113045||Administração - Ponta Porã","Y3Vyc285NTcwOA==":"95708||Ciências Contábeis - Ponta Porã","Y3Vyc282ODMxOQ==":"68319||Ciências Econômicas - Ponta Porã","dGVzdGU=":"00000001||Teste"};
             
@@ -363,7 +360,7 @@
                         });
                     }
                     
-                    const dimensao = $('filter-dimensao').value;
+                    const dimensao = $('filter-dimensao') ? $('filter-dimensao').value : '';
                     if(dimensao) {
                         f = f.filter(d => d.tipo === dimensao);
                     }
@@ -382,7 +379,7 @@
 
                 $('dash-table-body').innerHTML=pD.length ? pD.map(i=> {
                     const uniqueId = i.ano + '|' + i.curso + '|' + i.fragilidade;
-                    const isChecked = selectedForPDF.has(uniqueId) ? 'checked' : '';
+                    const isChecked = selectedForPDF && selectedForPDF.has(uniqueId) ? 'checked' : '';
                     return `<tr class="text-[11px] border-b border-slate-50 hover:bg-slate-50">
                     <td class="p-4 text-center"><input type="checkbox" class="pdf-checkbox w-4 h-4 cursor-pointer accent-uems-blue" value="${escapeHTML(uniqueId)}" ${isChecked} onchange="window.toggleSelection(this)"></td>
                     ${pr==='reitoria'?`<td class="p-4 font-bold text-uems-blue">${i.curso}</td>`:''}
@@ -462,13 +459,13 @@
 
                 if(p==='reitoria'){
                     $('filter-curso-wrapper').classList.remove('hidden');
-                    $('filter-dimensao-wrapper').classList.remove('hidden'); 
+                    if($('filter-dimensao-wrapper')) $('filter-dimensao-wrapper').classList.remove('hidden'); 
                     $('filter-curso').value='';
-                    $('filter-dimensao').value=''; 
+                    if($('filter-dimensao')) $('filter-dimensao').value=''; 
                     if($('custom-autocomplete')) $('custom-autocomplete').classList.add('hidden');
                 }else{
                     $('filter-curso-wrapper').classList.add('hidden');
-                    $('filter-dimensao-wrapper').classList.add('hidden'); 
+                    if($('filter-dimensao-wrapper')) $('filter-dimensao-wrapper').classList.add('hidden'); 
                 }
                 
                 let h=`<button id="btn-export-pdf" onclick="window.gerarPDF()" class="flex-1 md:flex-none px-5 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm shadow-md hover:bg-slate-900 transition-all flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> <span>Exportar PDF</span></button>`;
@@ -481,7 +478,7 @@
             };
 
             // =========================================================================
-            // LÓGICA DE SELEÇÃO E EXPORTAÇÃO DINÂMICA DE PDF (DOWNLOAD DIRETO)
+            // LÓGICA DE SELEÇÃO E EXPORTAÇÃO DINÂMICA DE PDF (JANELA DE IMPRESSÃO)
             // =========================================================================
             window.toggleSelection = function(cb) {
                 if(cb.checked) selectedForPDF.add(cb.value);
@@ -498,15 +495,8 @@
 
             window.gerarPDF = function() {
                 if (selectedForPDF.size === 0) {
-                    return showAlert("Aviso", "Por favor, selecione (marque a caixinha) pelo menos uma fragilidade na tabela para baixar o PDF.");
+                    return showAlert("Aviso", "Por favor, selecione (marque a caixinha) pelo menos uma fragilidade na tabela para gerar o relatório.");
                 }
-
-                // Efeito de Carregamento no Botão
-                const btnExport = document.getElementById('btn-export-pdf');
-                const originalBtnHTML = btnExport.innerHTML;
-                btnExport.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Gerando Arquivo...`;
-                btnExport.disabled = true;
-                btnExport.classList.add('opacity-80', 'cursor-not-allowed');
 
                 const dataAgora = new Date();
                 const formatoData = dataAgora.toLocaleDateString('pt-BR');
@@ -521,15 +511,6 @@
                     escopoCurso = `Filtro: ${document.getElementById('filter-curso').value}`;
                 }
 
-                // Definição Inteligente do Nome do Arquivo
-                let nomeDoArquivo = "";
-                if (isProe) {
-                    nomeDoArquivo = `Relatorio_Consolidado_PROE_${dataAgora.getTime()}.pdf`;
-                } else {
-                    let safeCursoName = userCourse.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                    nomeDoArquivo = `Plano_de_Acao_${safeCursoName}_${filtroAno}.pdf`;
-                }
-
                 const dadosExportacao = window.currentFilteredData.filter(i => {
                     const uniqueId = i.ano + '|' + i.curso + '|' + i.fragilidade;
                     return selectedForPDF.has(uniqueId);
@@ -539,55 +520,55 @@
                     let headerCard = '';
                     if (isProe) {
                         headerCard = `
-                        <div style="background: #f2f2f2; border-bottom: 1px solid #000; padding: 7px 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                        <div class="card-header" style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
                             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                                 <span style="font-size: 14px; font-weight: 900; text-transform: uppercase;">${escapeHTML(i.curso)}</span>
-                                <span style="font-size: 8px; font-weight: 700; border: 1px solid #000; padding: 2px 8px; background: white; letter-spacing: 0.05em;">Ref: ${escapeHTML(i.ano)}</span>
+                                <span class="ref-badge">Ref: ${escapeHTML(i.ano)}</span>
                             </div>
-                            <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Dimensão: ${escapeHTML(i.tipo)}</div>
+                            <div class="dimension">Dimensão: ${escapeHTML(i.tipo)}</div>
                         </div>`;
                     } else {
                         headerCard = `
-                        <div style="background: #f2f2f2; border-bottom: 1px solid #000; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Dimensão: ${escapeHTML(i.tipo)}</span>
-                            <span style="font-size: 8px; font-weight: 700; border: 1px solid #000; padding: 2px 8px; background: white; letter-spacing: 0.05em;">Ref: ${escapeHTML(i.ano)}</span>
+                        <div class="card-header">
+                            <span class="dimension">Dimensão: ${escapeHTML(i.tipo)}</span>
+                            <span class="ref-badge">Ref: ${escapeHTML(i.ano)}</span>
                         </div>`;
                     }
 
                     return `
-                    <div class="evitar-quebra" style="border: 1px solid #000; margin-bottom: 14px; page-break-inside: avoid;">
+                    <div class="fragility-card">
                         ${headerCard}
-                        <div style="padding: 12px;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px;">
-                                <div style="display: flex; flex-direction: column; gap: 2px; grid-column: 1 / -1;">
-                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">4. Descrição da Fragilidade</span>
-                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;">${escapeHTML(i.fragilidade).replace(/\n/g, '<br>')}</span>
+                        <div class="card-body">
+                            <div class="fields-grid">
+                                <div class="field full">
+                                    <span class="field-label">4. Descrição da Fragilidade</span>
+                                    <span class="field-value">${escapeHTML(i.fragilidade).replace(/\n/g, '<br>')}</span>
                                 </div>
-                                <div style="display: flex; flex-direction: column; gap: 2px; grid-column: 1 / -1;">
-                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">7. Ação Prática Proposta</span>
-                                    <span style="font-size: 11px; font-weight: 700; color: #000; line-height: 1.4;">${escapeHTML(i.acao).replace(/\n/g, '<br>')}</span>
+                                <div class="field full">
+                                    <span class="field-label">7. Ação Prática Proposta</span>
+                                    <span class="field-value bold">${escapeHTML(i.acao).replace(/\n/g, '<br>')}</span>
                                 </div>
-                                <div style="display: flex; flex-direction: column; gap: 2px;">
-                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">5. Fonte / 6. Conceito</span>
-                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;">${escapeHTML(i.fonte)} <strong style="font-weight: 700; margin-left: 6px;">(Nota: ${escapeHTML(i.conceito)})</strong></span>
+                                <div class="field">
+                                    <span class="field-label">5. Fonte / 6. Conceito</span>
+                                    <span class="field-value">${escapeHTML(i.fonte)} <strong>(Nota: ${escapeHTML(i.conceito)})</strong></span>
                                 </div>
-                                <div style="display: flex; flex-direction: column; gap: 2px;">
-                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">8. Prazo / 9. Responsável</span>
-                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;"><strong style="font-weight: 700; margin-right: 6px;">${escapeHTML(i.prazo)}</strong> — ${escapeHTML(i.responsavel)}</span>
+                                <div class="field">
+                                    <span class="field-label">8. Prazo / 9. Responsável</span>
+                                    <span class="field-value"><strong>${escapeHTML(i.prazo)}</strong> — ${escapeHTML(i.responsavel)}</span>
                                 </div>
-                                <hr style="grid-column: 1 / -1; border: none; border-top: 1px dashed #999; margin: 2px 0;">
-                                <div style="display: flex; flex-direction: column; gap: 2px; grid-column: 1 / -1;">
-                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">10. Recursos Necessários</span>
-                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;">${escapeHTML(i.recursos).replace(/\n/g, '<br>')}</span>
+                                <hr class="divider-dashed">
+                                <div class="field full">
+                                    <span class="field-label">10. Recursos Necessários</span>
+                                    <span class="field-value">${escapeHTML(i.recursos).replace(/\n/g, '<br>')}</span>
                                 </div>
-                                <div style="grid-column: 1 / -1; border: 1px solid #000; display: grid; grid-template-columns: 1fr 1fr;">
-                                    <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
-                                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">11. Data da Reunião</span>
-                                        <span style="font-size: 11px; font-weight: 700; color: #000; line-height: 1.4;">${escapeHTML(i.dataReuniao || '-')}</span>
+                                <div class="meeting-box">
+                                    <div class="meeting-cell">
+                                        <span class="field-label">11. Data da Reunião</span>
+                                        <span class="field-value bold">${escapeHTML(i.dataReuniao || '-')}</span>
                                     </div>
-                                    <div style="padding: 8px 10px; border-left: 1px solid #000; display: flex; flex-direction: column; gap: 2px;">
-                                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">12. Minuta da Reunião</span>
-                                        <span style="font-size: 11px; font-weight: 400; font-style: italic; color: #000; line-height: 1.4;">${escapeHTML(i.minutaReuniao || '-')}</span>
+                                    <div class="meeting-cell">
+                                        <span class="field-label">12. Minuta da Reunião</span>
+                                        <span class="field-value italic">${escapeHTML(i.minutaReuniao || '-')}</span>
                                     </div>
                                 </div>
                             </div>
@@ -595,75 +576,125 @@
                     </div>`;
                 }).join('');
 
-                // Container temporário Oculto na tela para renderizar o PDF
-                const tempContainer = document.createElement('div');
-                tempContainer.style.position = 'absolute';
-                tempContainer.style.left = '-9999px';
-                tempContainer.style.top = '0';
-                tempContainer.style.width = '210mm'; 
-                tempContainer.style.backgroundColor = '#ffffff';
-                tempContainer.style.padding = '15mm';
-                tempContainer.style.fontFamily = "'IBM Plex Sans', sans-serif";
-                tempContainer.style.color = "#000000";
+                let htmlFinal = `
+                <!DOCTYPE html>
+                <html lang="pt-BR">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>${isProe ? 'Relatório Consolidado Institucional' : 'Relatório do Plano de Ação'}</title>
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+                    <style>
+                        :root {
+                            --black: #000000; --gray-dark: #333333; --gray-mid: #666666; --gray-light: #f2f2f2;
+                            --border: 1px solid #000; --border-thick: 2px solid #000; --font: 'IBM Plex Sans', Arial, sans-serif;
+                        }
+                        * { box-sizing: border-box; margin: 0; padding: 0; }
+                        body { font-family: var(--font); background: #d0d0d0; color: var(--black); }
+                        .page-wrapper { padding: 24px 16px 48px; }
+                        .a4 { width: 210mm; min-height: 297mm; margin: 0 auto; background: white; padding: 18mm 20mm 16mm; box-shadow: 0 4px 32px rgba(0,0,0,0.25); display: flex; flex-direction: column; }
+                        .a4-body { flex: 1; }
+                        .doc-header { text-align: center; border-bottom: var(--border-thick); padding-bottom: 14px; margin-bottom: 18px; }
+                        .doc-header img { height: 64px; margin-bottom: 10px; filter: grayscale(100%); object-fit: contain; }
+                        .doc-header h1 { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.3; }
+                        .doc-header h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--gray-dark); margin-top: 4px; }
+                        .course-id { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px; }
+                        .course-id .label { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-mid); display: block; margin-bottom: 2px; }
+                        .course-id .value { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+                        .course-id .right { text-align: right; }
+                        .section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; border-left: 3px solid var(--black); padding-left: 8px; margin-bottom: 12px; }
+                        .fragility-card { border: var(--border); margin-bottom: 14px; page-break-inside: avoid; }
+                        .card-header { background: var(--gray-light); border-bottom: var(--border); padding: 7px 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+                        .card-header .dimension { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+                        .card-header .ref-badge { font-size: 8px; font-weight: 700; border: var(--border); padding: 2px 8px; background: white; letter-spacing: 0.05em; }
+                        .card-body { padding: 12px; }
+                        .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+                        .field { display: flex; flex-direction: column; gap: 2px; }
+                        .field.full { grid-column: 1 / -1; }
+                        .field-label { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-mid); }
+                        .field-value { font-size: 11px; font-weight: 400; color: var(--black); line-height: 1.4; }
+                        .field-value.bold { font-weight: 700; }
+                        .field-value.italic { font-style: italic; }
+                        .field-value strong { font-weight: 700; margin-left: 6px; }
+                        .divider-dashed { grid-column: 1 / -1; border: none; border-top: 1px dashed #999; margin: 2px 0; }
+                        .meeting-box { grid-column: 1 / -1; border: var(--border); display: grid; grid-template-columns: 1fr 1fr; }
+                        .meeting-cell { padding: 8px 10px; }
+                        .meeting-cell + .meeting-cell { border-left: var(--border); }
+                        .doc-footer { margin-top: auto; padding-top: 10px; border-top: var(--border-thick); display: flex; justify-content: space-between; align-items: center; }
+                        .doc-footer span { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gray-mid); }
+                        
+                        @media print {
+                            @page { size: A4; margin: 0; }
+                            body { background: white !important; }
+                            .page-wrapper { padding: 0 !important; }
+                            .a4 { width: 100% !important; min-height: 100vh !important; margin: 0 !important; box-shadow: none !important; padding: 18mm 20mm 14mm !important; }
+                            * { border-radius: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                            .card-header { background: var(--gray-light) !important; }
+                            .fragility-card { page-break-inside: avoid !important; }
+                            .print-loading { display: none !important; }
+                            .no-print { display: none !important; }
+                        }
+                        .print-loading { position: fixed; top: 0; left: 0; right: 0; background: #1a1a2e; color: white; text-align: center; padding: 15px; font-size: 14px; font-weight: bold; z-index: 1000; font-family: sans-serif; }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-loading no-print">Preparando o Relatório... A janela de impressão abrirá em instantes. <button onclick="window.print()" style="margin-left: 10px; background: white; color: #1a1a2e; border: none; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-weight: bold;">Imprimir Manualmente</button></div>
+                    <div class="page-wrapper">
+                    <div class="a4">
+                        <div class="a4-body">
+                            <header class="doc-header">
+                                <img src="https://www.uems.br/anexos/imagens/conteudo/uems_imagens_2025-06-13_13-31-53.png" onerror="this.style.display='none'" alt="Logo UEMS">
+                                <h1>Divisão de Gestão do ENADE e Indicadores da Educação Superior</h1>
+                                <h2>${isProe ? 'Plano de Ação: Relatório Consolidado Institucional' : 'Relatório do Plano de Ação dos Cursos'}</h2>
+                            </header>
 
-                tempContainer.innerHTML = `
-                    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 14px; margin-bottom: 18px;">
-                        <img src="https://www.uems.br/anexos/imagens/conteudo/uems_imagens_2023-09-22_13-02-19.png" crossorigin="anonymous" style="height: 64px; margin-bottom: 10px; filter: grayscale(100%); object-fit: contain;">
-                        <h1 style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.3; margin:0;">Divisão de Gestão do ENADE e Indicadores da Educação Superior</h1>
-                        <h2 style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #333; margin-top: 4px; margin-bottom:0;">${isProe ? 'Plano de Ação: Relatório Consolidado Institucional' : 'Relatório do Plano de Ação dos Cursos'}</h2>
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px;">
-                        <div>
-                            <span style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666; display: block; margin-bottom: 2px;">${isProe ? 'Escopo do Relatório' : 'Curso / Unidade Acadêmica'}</span>
-                            <span style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;">${escapeHTML(escopoCurso)}</span>
+                            <div class="course-id">
+                                <div class="left">
+                                    <span class="label">${isProe ? 'Escopo do Relatório' : 'Curso / Unidade Acadêmica'}</span>
+                                    <span class="value">${escapeHTML(escopoCurso)}</span>
+                                </div>
+                                <div class="right">
+                                    <span class="label">${isProe ? 'Ano de Referência / Filtro' : 'Ano de Referência'}</span>
+                                    <span class="value">${escapeHTML(filtroAno)}</span>
+                                </div>
+                            </div>
+
+                            <p class="section-title">Fragilidades Selecionadas (${dadosExportacao.length})</p>
+
+                            ${cardsHtml}
+
                         </div>
-                        <div style="text-align: right;">
-                            <span style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666; display: block; margin-bottom: 2px;">${isProe ? 'Ano de Referência / Filtro' : 'Ano de Referência'}</span>
-                            <span style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;">${escapeHTML(filtroAno)}</span>
-                        </div>
+                        <footer class="doc-footer">
+                            <span>${isProe ? 'Sistema PROE - UEMS' : 'Documento Institucional UEMS'}</span>
+                            <span>Exportado em: ${dataEmissao}</span>
+                        </footer>
                     </div>
-
-                    <p style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; border-left: 3px solid #000; padding-left: 8px; margin-bottom: 12px;">Fragilidades Selecionadas (${dadosExportacao.length})</p>
-
-                    ${cardsHtml}
-
-                    <div style="margin-top: 20px; padding-top: 10px; border-top: 2px solid #000; display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">${isProe ? 'Sistema PROE - UEMS' : 'Documento Institucional UEMS'}</span>
-                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">Exportado em: ${dataEmissao}</span>
                     </div>
-                `;
+                    <script>
+                        setTimeout(function() { window.print(); }, 1000);
+                    <\/script>
+                </body>
+                </html>`;
 
-                document.body.appendChild(tempContainer);
-
-                const opt = {
-                    margin:       [10, 10, 10, 10], 
-                    filename:     nomeDoArquivo,
-                    image:        { type: 'jpeg', quality: 0.98 },
-                    html2canvas:  { scale: 2, useCORS: true },
-                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
-                };
-
-                // Gera o PDF e limpa a tela automaticamente após baixar
-                html2pdf().set(opt).from(tempContainer).save().then(() => {
-                    document.body.removeChild(tempContainer);
+                let printWindow = window.open('', '_blank');
+                if(printWindow) {
+                    printWindow.document.open();
+                    printWindow.document.write(htmlFinal);
+                    printWindow.document.close();
                     
-                    // Restaura o Botão
-                    btnExport.innerHTML = originalBtnHTML;
-                    btnExport.disabled = false;
-                    btnExport.classList.remove('opacity-80', 'cursor-not-allowed');
-
-                    // LIMPA AS SELEÇÕES DA TELA PARA EVITAR "LIXO" NO PRÓXIMO DOWNLOAD
+                    // RESET OBRIGATÓRIO: Limpa as seleções após gerar o PDF e desmarca as caixas na tela
                     selectedForPDF.clear();
                     window.renderTable();
-                }).catch(err => {
-                    console.error("Erro na geração do PDF:", err);
-                    showAlert("Erro", "Ocorreu um erro ao gerar o PDF. Verifique seu navegador.");
-                    btnExport.innerHTML = originalBtnHTML;
-                    btnExport.disabled = false;
-                    btnExport.classList.remove('opacity-80', 'cursor-not-allowed');
-                });
+                } else {
+                    showAlert("Atenção", "O seu navegador bloqueou a abertura da aba de impressão (Pop-up). Por favor, permita pop-ups para este site e tente novamente.");
+                }
+            };
+
+            // Configuração do botão de sucesso
+            $('btn-close-success').onclick=()=>{
+                window.toggleModal('modal-success',false);
+                if(authMode==='coordenador'){ showView('view-formulario'); window.scrollTo({top:0,behavior:'smooth'}); }
+                else { window.showDashboard(authMode); }
             };
 
             const ySel=document.getElementById('input-ano'), currY=new Date().getFullYear();
