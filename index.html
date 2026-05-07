@@ -6,6 +6,11 @@
     <title>Portal do Coordenador - Plano de Ação UEMS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+    
+    <!-- Biblioteca para Download Direto de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <script>tailwind.config={theme:{extend:{fontFamily:{sans:['Inter','sans-serif']},colors:{uems:{blue:'#00338C',dark:'#002255'}}}}}</script>
     <style>
         .bg-polka{position:fixed;inset:0;z-index:-1;background:radial-gradient(#e5e7eb 1px,transparent 1px);background-size:16px 16px;opacity:0.5}
@@ -77,7 +82,7 @@
                     
                     <fieldset><legend class="text-[11px] font-extrabold uppercase text-slate-500 mb-2 tracking-widest">3. Dimensão da Fragilidade</legend>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <label for="tipo_pedag" class="flex items-center gap-3 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-uems-blue transition-all mb-0 normal-case"><input type="radio" id="tipo_pedag" name="tipo_fragilidade" value="Organização Didático-Pedagógica" class="w-4 h-4 text-uems-blue"><span class="text-xs font-bold text-slate-700 uppercase tracking-tight leading-tight">Organização Didático-Pedagógica</span></label>
+                            <label for="tipo_pedag" class="flex items-center gap-3 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-uems-blue transition-all mb-0 normal-case"><input type="radio" id="tipo_pedag" name="tipo_fragilidade" value="Organização Didático-Pedagógica" class="w-4 h-4 text-uems-blue" required><span class="text-xs font-bold text-slate-700 uppercase tracking-tight leading-tight">Organização Didático-Pedagógica</span></label>
                             <label for="tipo_docente" class="flex items-center gap-3 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-uems-blue transition-all mb-0 normal-case"><input type="radio" id="tipo_docente" name="tipo_fragilidade" value="Corpo Docente e Tutorial" class="w-4 h-4 text-uems-blue"><span class="text-xs font-bold text-slate-700 uppercase tracking-tight leading-tight">Corpo Docente e Tutorial</span></label>
                             <label for="tipo_infra" class="flex items-center gap-3 p-4 border rounded-xl cursor-pointer has-[:checked]:bg-blue-50 has-[:checked]:border-uems-blue transition-all mb-0 normal-case"><input type="radio" id="tipo_infra" name="tipo_fragilidade" value="Infraestrutura" class="w-4 h-4 text-uems-blue"><span class="text-xs font-bold text-slate-700 uppercase tracking-tight leading-tight">Infraestrutura</span></label>
                         </div>
@@ -89,7 +94,6 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><label for="input-prazo">8. Prazo</label><input type="text" id="input-prazo" required class="input-uems" placeholder="Ex: 6 meses"></div><div><label for="input-responsavel">9. Responsável</label><input type="text" id="input-responsavel" required class="input-uems" placeholder="Ex: Coordenador"></div></div>
                     <div><label for="input-recursos">10. Recursos Necessários</label><textarea id="input-recursos" rows="2" required class="input-uems" placeholder="Financeiros, humanos..."></textarea></div>
                     
-                    <!-- NOVOS CAMPOS ADICIONADOS -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2">
                         <div>
                             <label for="input-data-reuniao">11. Data de Reunião (CDE, Autoavaliação e Comitê ENADE)</label>
@@ -114,7 +118,6 @@
                 <div id="dashboard-filters" class="hidden w-full md:w-auto flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <div class="flex-1 sm:flex-none sm:w-40 relative"><select id="filter-ano" class="input-uems py-3 w-full shadow-sm text-sm font-bold border-uems-blue/20" onchange="window.resetPagination(); window.renderTable()"><option value="">Todos os Anos</option></select></div>
                     
-                    <!-- Filtro de Dimensão da Fragilidade (Apenas Reitoria) -->
                     <div id="filter-dimensao-wrapper" class="flex-1 sm:flex-none sm:w-60 relative hidden">
                         <select id="filter-dimensao" class="input-uems py-3 w-full shadow-sm text-sm font-bold border-uems-blue/20" onchange="window.resetPagination(); window.renderTable()">
                             <option value="">Todas as Dimensões</option>
@@ -126,7 +129,6 @@
 
                     <div id="filter-curso-wrapper" class="flex-[2] sm:flex-none sm:w-80 relative hidden">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/></svg></div>
-                        <!-- Pesquisa Customizada à prova de Firefox -->
                         <input type="text" id="filter-curso" autocomplete="off" placeholder="Filtrar por nome ou código..." class="input-uems pl-10 py-3 w-full shadow-sm text-sm font-bold">
                         <ul id="custom-autocomplete" class="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-60 overflow-y-auto hidden divide-y divide-slate-50"></ul>
                     </div>
@@ -149,23 +151,19 @@
     <div id="modal-adicionar" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4"><div class="bg-white rounded-[2rem] w-full max-w-md bento-shadow p-8 text-center animate-in"><h3 class="text-2xl font-black mb-2 text-uems-blue">Item Salvo!</h3><p class="text-sm text-slate-500 mb-8 font-medium">A fragilidade foi adicionada à sua lista de envio.</p><div class="flex flex-col gap-3"><button id="btn-resumo-direto" onclick="window.irParaResumoDireto()" class="w-full py-4 bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-md">Ver Lista e Enviar</button><button id="btn-add-another" onclick="window.toggleModal('modal-adicionar', false)" class="w-full py-4 bg-slate-100 text-slate-700 font-bold rounded-xl transition-all">Adicionar Outra</button></div></div></div>
     
     <div id="modal-editar" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4"><div class="bg-white rounded-[2rem] w-full max-w-2xl max-h-[90vh] overflow-y-auto bento-shadow p-8 no-scrollbar relative animate-in text-left"><h3 class="text-2xl font-black tracking-tight mb-6 text-uems-blue border-b pb-4">Editar Registro</h3><form id="form-editar" class="space-y-6"><input type="hidden" id="edit-original-fragilidade"><input type="hidden" id="edit-original-ano"><input type="hidden" id="edit-original-curso"><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="edit-tipo">3. Dimensão</label><select id="edit-tipo" class="input-uems font-bold" required><option value="Organização Didático-Pedagógica">Organização Didático-Pedagógica</option><option value="Corpo Docente e Tutorial">Corpo Docente e Tutorial</option><option value="Infraestrutura">Infraestrutura</option></select></div><div><label for="edit-fonte">5. Fonte</label><select id="edit-fonte" class="input-uems font-bold" required><option>Relatório Enade (INEP)</option><option>Avaliação in loco (CEE/MS)</option><option>Relatório de Autoavaliação</option></select></div></div><div><label for="edit-fragilidade">4. Descrição</label><textarea id="edit-fragilidade" rows="2" class="input-uems font-medium" required></textarea></div><div><label for="edit-acao">7. Ação</label><textarea id="edit-acao" rows="2" class="input-uems font-medium" required></textarea></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="edit-conceito">6. Conceito</label><input type="text" id="edit-conceito" class="input-uems font-black" required></div><div><label for="edit-prazo">8. Prazo</label><input type="text" id="edit-prazo" class="input-uems font-bold" required></div></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="edit-responsavel">9. Responsável</label><input type="text" id="edit-responsavel" class="input-uems font-bold" required></div><div><label for="edit-recursos">10. Recursos</label><input type="text" id="edit-recursos" class="input-uems font-bold" required></div></div>
-        
-        <!-- NOVOS CAMPOS NO MODAL DE EDIÇÃO -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><label for="edit-data-reuniao">11. Data de Reunião (CDE, Autoavaliação e Comitê ENADE)</label><input type="text" id="edit-data-reuniao" class="input-uems font-bold" required></div>
-            <div><label for="edit-minuta">12. Minuta</label><input type="text" id="edit-minuta" class="input-uems font-bold" required></div>
-        </div>
-
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4"><div><label for="edit-data-reuniao">11. Data de Reunião (CDE, Autoavaliação e Comitê ENADE)</label><input type="text" id="edit-data-reuniao" class="input-uems font-bold" required></div><div><label for="edit-minuta">12. Minuta</label><input type="text" id="edit-minuta" class="input-uems font-bold" required></div></div>
         <div class="flex gap-3 pt-4 border-t mt-6"><button type="button" id="btn-cancel-edit" onclick="window.toggleModal('modal-editar', false)" class="flex-1 py-3 bg-slate-100 font-bold rounded-xl border">Cancelar</button><button type="button" id="btn-save-edit" onclick="window.saveEdit()" class="flex-1 py-3 bg-uems-blue text-white font-bold rounded-xl shadow-lg">Salvar Edição</button></div></form></div></div>
 
-    <!-- LÓGICA BLINDADA E COMPATÍVEL COM FIREFOX E MOODLE -->
+    <!-- LÓGICA BLINDADA -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // URL DA API DO GOOGLE APPS SCRIPT
             const API_URL="https://script.google.com/macros/s/AKfycbyZ1quKunjm0cqBrEgqhml6bRAxKLI_xnCgo1VnB2NF6VsyvGigJzamwzKi8HQydTx2kw/exec";
             let cart=[],userCourse=null,authMode='',dashboardData=[],currentPage=1;const ITEMS_PER_PAGE=25;
+            window.currentFilteredData = []; // Variável global para armazenar os dados do PDF
+            let selectedForPDF = new Set(); // Armazena as fragilidades selecionadas para exportação
             
-            const COURSES={"Y3Vyc280NTU5OA==":"45598||Agronomia - Aquidauana","Y3Vyc28xNjE3MTEx":"1617111||Direito - Aquidauana","Y3Vyc28xMjM1NjI=":"123562||Engenharia Florestal - Aquidauana","Y3Vyc28xNzczNQ==":"17735||Zootecnia - Aquidauana","Y3Vyc28xNjYyMTE1":"1662115||Direito - Bataguassu","Y3Vyc28xNjEzOTU2":"1613956||Administração Pública - Campo Grande","Y3Vyc28xNjEzOTQ4":"1613948||Ciências Biológicas (Bacharelado) - Campo Grande","Y3Vyc28xNjU5OTQ0":"1659944||Direito - Campo Grande","Y3Vyc28xNjg2MzQ4":"1686348||Fonoaudiologia - Campo Grande","Y3Vyc28xNTAxMDQ=":"150104||Geografia (Licenciatura) - Campo Grande","Y3Vyc28xMzEzMzI2":"1313326||Geografia (Bacharelado) - Campo Grande","Y3Vyc28xNjEzOTQ3":"1613947||História - Campo Grande","Y3Vyc28xMTg5ODQ5":"1189849||Letras - Campo Grande","Y3Vyc28xNTAxMDU=":"150105||Letras - Português e Espanhol - Campo Grande","Y3Vyc28xNTAxMDY=":"150106||Letras - Português e Inglês - Campo Grande","Y3Vyc28xMzEzMzQx":"1313341||Medicina - Campo Grande","Y3Vyc28xMTMwNTI=":"113052||Pedagogia - Campo Grande","Y3Vyc28xNjEzOTUw":"1613950||Psicologia - Campo Grande","Y3Vyc281MDAwNDc2":"5000476||Turismo - Campo Grande","Y3Vyc281MTA0Mg==":"51042||Agronomia - Cassilândia","Y3Vyc28xNjE3MTEy":"1617112||Direito - Cassilândia","Y3Vyc284OTAyNA==":"89024||Letras - Português e Inglês - Cassilândia","Y3Vyc280NTcwMQ==":"45701||Matemática - Cassilândia","Y3Vyc28xNjEzOTQ5":"1613949||Psicologia - Coxim","Y3Vyc282ODMyMQ==":"68321||Ciência da Computação - Dourados","Y3Vyc281MDkzMw==":"50933||Ciências Biológicas (Licenciatura) - Dourados","Y3Vyc28xMTkwNjMx":"1190631||Ciências Biológicas (Bacharelado) - Dourados","Y3Vyc28xNzc2Ng==":"17766||Direito - Dourados","Y3Vyc28xNzc2OA==":"17768||Enfermagem - Dourados","Y3Vyc28xMTE3OTMz":"1117933||Engenharia Ambiental e Sanitária - Dourados","Y3Vyc28xMDU5Mjg=":"105928||Física - Dourados","Y3Vyc284OTAyMg==":"89022||Letras - Português e Espanhol - Dourados","Y3Vyc284OTAxOA==":"89018||Letras - Português e Inglês - Dourados","Y3Vyc282ODMxMw==":"68313||Matemática - Dourados","Y3Vyc28xMTMwNTg=":"113058||Pedagogia - Dourados","Y3Vyc281MDkzNQ==":"50935||Química - Dourados","Y3Vyc28xMjM1NjU=":"123565||Química Industrial - Dourados","Y3Vyc285NTcwNg==":"95706||Sistemas de Informação - Dourados","Y3Vyc280NTYwNQ==":"45605||Turismo - Dourados","Y3Vyc280NTcxMw==":"45713||Ciências Biológicas - Ivinhema","Y3Vyc28xNjEzOTQ2":"1613946||Direito - Jardim","Y3Vyc28xMDU3ODA=":"105780||Geografia - Jardim","Y3Vyc284OTAyOQ==":"89029||Letras - Português e Inglês - Jardim","Y3Vyc28xMTMwNDc=":"113047||Administração - Maracaju","Y3Vyc28xNTg3MDk0":"1587094||Agronomia - Maracaju","Y3Vyc28xMTMwNTQ=":"113054||Pedagogia - Maracaju","Y3Vyc28xNTg2NTk2":"1586596||Agronomia - Mundo Novo","Y3Vyc280NTcxNQ==":"45715||Ciências Biológicas - Mundo Novo","Y3Vyc281MDAwNDc1":"5000475||Gestão Ambiental - Mundo Novo","Y3Vyc282ODMxNQ==":"68315||Direito - Naviraí","Y3Vyc28xMzE0MjEw":"1314210||Engenharia de Alimentos - Naviraí","Y3Vyc281MTA0NA==":"51044||Química - Naviraí","Y3Vyc28xNjg5MjQ5":"1689249||Engenharia Civil - Nova Andradina","Y3Vyc280NTcwMw==":"45703||Matemática - Nova Andradina","Y3Vyc28xNTg1OTc1":"1585975||Sistemas de Informação - Nova Andradina","Y3Vyc28xMjM1ODg=":"123588||Ciências Sociais (Licenciatura) - Paranaíba","Y3Vyc28xMjY1ODYz":"1265863||Ciências Sociais (Bacharelado) - Paranaíba","Y3Vyc28xNzc2Mg==":"17762||Direito - Paranaíba","Y3Vyc28xMTMwNTY=":"113056||Pedagogia - Paranaíba","Y3Vyc28xMTMwNDU=":"113045||Administração - Ponta Porã","Y3Vyc285NTcwOA==":"95708||Ciências Contábeis - Ponta Porã","Y3Vyc282ODMxOQ==":"68319||Ciências Econômicas - Ponta Porã","dGVzdGU=":"00000001||Teste"};
+            const COURSES={"Y3Vyc280NTU5OA==":"45598||Agronomia - Aquidauana","Y3Vyc28xNjE3MTEx":"1617111||Direito - Aquidauana","Y3Vyc28xMjM1NjI=":"123562||Engenharia Florestal - Aquidauana","Y3Vyc28xNzczNQ==":"17735||Zootecnia - Aquidauana","Y3Vyc28xNjYyMTE1":"1662115||Direito - Bataguassu","Y3Vyc28xNjEzOTU2":"1613956||Administração Pública - Campo Grande","Y3Vyc28xNjEzOTQ4":"1613948||Ciências Biológicas (Bacharelado) - Campo Grande","Y3Vyc28xNjU5OTQ0":"1659944||Direito - Campo Grande","Y3Vyc28xNjg2MzQ4":"1686348||Fonoaudiologia - Campo Grande","Y3Vyc28xNTAxMDQ=":"150104||Geografia (Licenciatura) - Campo Grande","Y3Vyc28xMzEzMzI2":"1313326||Geografia (Bacharelado) - Campo Grande","Y3Vyc28xNjEzOTQ3":"1613947||História - Campo Grande","Y3Vyc28xMTg5ODQ5":"1189849||Letras - Campo Grande","Y3Vyc28xNTAxMDU=":"150105||Letras - Português e Espanhol - Campo Grande","Y3Vyc28xNTAxMDY=":"150106||Letras - Português e Inglês - Campo Grande","Y3Vyc28xMzEzMzQx":"1313341||Medicina - Campo Grande","Y3Vyc28xMTMwNTI=":"113052||Pedagogia - Campo Grande","Y3Vyc28xNjEzOTUw":"1613950||Psicologia - Campo Grande","Y3Vyc281MDAwNDc2":"5000476||Turismo - Campo Grande","Y3Vyc281MTA0Mg==":"51042||Agronomia - Cassilândia","Y3Vyc28xNjE3MTEy":"1617112||Direito - Cassilândia","Y3Vyc284OTAyNA==":"89024||Letras - Português e Inglês - Cassilândia","Y3Vyc280NTcwMQ==":"45701||Matemática - Cassilândia","Y3Vyc28xNjEzOTQ5":"1613949||Psicologia - Coxim","Y3Vyc282ODMyMQ==":"68321||Ciência da Computação - Dourados","Y3Vyc281MDkzMw==":"50933||Ciências Biológicas (Licenciatura) - Dourados","Y3Vyc28xMTkwNjMx":"1190631||Ciências Biológicas (Bacharelado) - Dourados","Y3Vyc28xNzc2Ng==":"17766||Direito - Dourados","Y3Vyc28xNzc2OA==":"17768||Enfermagem - Dourados","Y3Vyc28xMTE3OTMz":"1117933||Engenharia Ambiental e Sanitária - Dourados","Y3Vyc28xNTAxMDM=":"150103||Engenharia Física - Dourados","Y3Vyc28xMDU5Mjg=":"105928||Física - Dourados","Y3Vyc284OTAyMg==":"89022||Letras - Português e Espanhol - Dourados","Y3Vyc284OTAxOA==":"89018||Letras - Português e Inglês - Dourados","Y3Vyc282ODMxMw==":"68313||Matemática - Dourados","Y3Vyc28xMTMwNTg=":"113058||Pedagogia - Dourados","Y3Vyc281MDkzNQ==":"50935||Química - Dourados","Y3Vyc28xMjM1NjU=":"123565||Química Industrial - Dourados","Y3Vyc285NTcwNg==":"95706||Sistemas de Informação - Dourados","Y3Vyc280NTYwNQ==":"45605||Turismo - Dourados","Y3Vyc280NTcxMw==":"45713||Ciências Biológicas - Ivinhema","Y3Vyc28xNjEzOTQ2":"1613946||Direito - Jardim","Y3Vyc28xMDU3ODA=":"105780||Geografia - Jardim","Y3Vyc284OTAyOQ==":"89029||Letras - Português e Inglês - Jardim","Y3Vyc28xMTMwNDc=":"113047||Administração - Maracaju","Y3Vyc28xNTg3MDk0":"1587094||Agronomia - Maracaju","Y3Vyc28xMTMwNTQ=":"113054||Pedagogia - Maracaju","Y3Vyc28xNTg2NTk2":"1586596||Agronomia - Mundo Novo","Y3Vyc280NTcxNQ==":"45715||Ciências Biológicas - Mundo Novo","Y3Vyc281MDAwNDc1":"5000475||Gestão Ambiental - Mundo Novo","Y3Vyc282ODMxNQ==":"68315||Direito - Naviraí","Y3Vyc28xMzE0MjEw":"1314210||Engenharia de Alimentos - Naviraí","Y3Vyc281MTA0NA==":"51044||Química - Naviraí","Y3Vyc28xNjg5MjQ5":"1689249||Engenharia Civil - Nova Andradina","Y3Vyc280NTcwMw==":"45703||Matemática - Nova Andradina","Y3Vyc28xNTg1OTc1":"1585975||Sistemas de Informação - Nova Andradina","Y3Vyc28xMjM1ODg=":"123588||Ciências Sociais (Licenciatura) - Paranaíba","Y3Vyc28xMjY1ODYz":"1265863||Ciências Sociais (Bacharelado) - Paranaíba","Y3Vyc28xNzc2Mg==":"17762||Direito - Paranaíba","Y3Vyc28xMTMwNTY=":"113056||Pedagogia - Paranaíba","Y3Vyc28xMTMwNDU=":"113045||Administração - Ponta Porã","Y3Vyc285NTcwOA==":"95708||Ciências Contábeis - Ponta Porã","Y3Vyc282ODMxOQ==":"68319||Ciências Econômicas - Ponta Porã","dGVzdGU=":"00000001||Teste"};
             
             const escapeHTML=s=>(s==null?'':String(s)).replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]));
             
@@ -230,7 +228,6 @@
 
             window.logout = function(){authMode='';userCourse=null;cart=[];dashboardData=[];updateCartUI();showView('view-login');};
             
-            // Timeout de 90s para aguentar o Modo Turbo
             async function api(m,b=null){try{const c=new AbortController(),t=setTimeout(()=>c.abort(),90000);if(m==='GET'){const r=await fetch(`${API_URL}?t=${Date.now()}`,{signal:c.signal});clearTimeout(t);return await r.json();}await fetch(`${API_URL}?t=${Date.now()}`,{method:m,mode:'no-cors',headers:{'Content-Type':'text/plain'},body:b?JSON.stringify(b):null,signal:c.signal});clearTimeout(t);return true;}catch(e){return null;}}
 
             window.saveToCart = function(){
@@ -240,7 +237,6 @@
                 if(!fragTxt || !conceptTxt) return showAlert("Atenção","Preencha os campos obrigatórios.");
                 const[c,n]=$('input-curso').value.split("||"),t=document.querySelector('input[name="tipo_fragilidade"]:checked');
                 
-                // INCLUI OS DOIS NOVOS CAMPOS AQUI
                 cart.push({
                     ano:$('input-ano').value, codigoCurso:c, curso:n, tipo:t?t.value:"N/A",
                     fragilidade:fragTxt, fonte:$('input-fonte').value, conceito:conceptTxt,
@@ -280,11 +276,11 @@
                 cart=[];window.toggleModal('modal-resumo',false);window.toggleModal('modal-success',true);
             };
 
-            window.resetPagination = function() { currentPage=1; };
+            window.resetPagination = function() { currentPage=1; selectedForPDF.clear(); };
             window.loadMore = function(){currentPage++;window.renderTable(authMode);};
 
             async function refreshData(p){
-                const pr=p||authMode;$('dash-table-body').innerHTML=`<tr><td colspan="9" class="p-20 text-center animate-pulse font-bold text-slate-400 uppercase tracking-widest text-[10px]">Sincronizando dados...</td></tr>`;
+                const pr=p||authMode;$('dash-table-body').innerHTML=`<tr><td colspan="10" class="p-20 text-center animate-pulse font-bold text-slate-400 uppercase tracking-widest text-[10px]">Sincronizando dados...</td></tr>`;
                 $('pagination-container').classList.add('hidden');
                 const d=await api('GET');if(!d)return showAlert("Erro","Falha ao carregar dados.");
                 dashboardData=d.reverse();
@@ -292,7 +288,7 @@
                 window.resetPagination();
                 window.renderTable(pr);
             }
-            window.refreshData = refreshData; // Expor para uso nos botões
+            window.refreshData = refreshData; 
 
             function populateFilters(){
                 const u=[...new Set(dashboardData.map(i=>i.ano))].sort((a,b)=>b-a);
@@ -358,7 +354,6 @@
                 if(pr==='coordenador'){
                     f=f.filter(d=>d.curso===userCourse);
                 } else {
-                    // PESQUISA POR CURSO
                     const query = sanitizeSearch($('filter-curso').value);
                     if(query) {
                         const searchTerms = query.split(' '); 
@@ -368,7 +363,6 @@
                         });
                     }
                     
-                    // FILTRO POR DIMENSÃO (Apenas Reitoria)
                     const dimensao = $('filter-dimensao').value;
                     if(dimensao) {
                         f = f.filter(d => d.tipo === dimensao);
@@ -376,15 +370,21 @@
                 }
                 
                 const a=$('filter-ano').value;if(a)f=f.filter(d=>d.ano==a);
+                
+                window.currentFilteredData = f; 
+
                 const tF=f.length;
                 const pD=f.slice(0,currentPage*ITEMS_PER_PAGE);
                 
-                // NOVO CABEÇALHO COM A COLUNA REUNIÃO
                 $('dash-table-head').innerHTML=pr==='reitoria'?
-                    '<th class="p-4">Curso</th><th class="p-4">Ano</th><th class="p-4">Dimensão</th><th class="p-4">Ação</th><th class="p-4">Fonte</th><th class="p-4">Prazo</th><th class="p-4">Recursos</th><th class="p-4">Reunião / Minuta</th>':
-                    '<th class="p-4">Ano</th><th class="p-4">Dimensão</th><th class="p-4">Ação</th><th class="p-4">Fonte</th><th class="p-4">Prazo</th><th class="p-4">Recursos</th><th class="p-4">Reunião / Minuta</th><th class="p-4 text-center">Ações</th>';
+                    '<th class="p-4 w-10 text-center"><input type="checkbox" id="selectAll" onclick="window.toggleSelectAll(this)" class="w-4 h-4 cursor-pointer accent-uems-blue"></th><th class="p-4">Curso</th><th class="p-4">Ano</th><th class="p-4">Dimensão</th><th class="p-4">Ação</th><th class="p-4">Fonte</th><th class="p-4">Prazo</th><th class="p-4">Recursos</th><th class="p-4">Reunião / Minuta</th>':
+                    '<th class="p-4 w-10 text-center"><input type="checkbox" id="selectAll" onclick="window.toggleSelectAll(this)" class="w-4 h-4 cursor-pointer accent-uems-blue"></th><th class="p-4">Ano</th><th class="p-4">Dimensão</th><th class="p-4">Ação</th><th class="p-4">Fonte</th><th class="p-4">Prazo</th><th class="p-4">Recursos</th><th class="p-4">Reunião / Minuta</th><th class="p-4 text-center">Ações</th>';
 
-                $('dash-table-body').innerHTML=pD.length ? pD.map(i=>`<tr class="text-[11px] border-b border-slate-50 hover:bg-slate-50">
+                $('dash-table-body').innerHTML=pD.length ? pD.map(i=> {
+                    const uniqueId = i.ano + '|' + i.curso + '|' + i.fragilidade;
+                    const isChecked = selectedForPDF.has(uniqueId) ? 'checked' : '';
+                    return `<tr class="text-[11px] border-b border-slate-50 hover:bg-slate-50">
+                    <td class="p-4 text-center"><input type="checkbox" class="pdf-checkbox w-4 h-4 cursor-pointer accent-uems-blue" value="${escapeHTML(uniqueId)}" ${isChecked} onchange="window.toggleSelection(this)"></td>
                     ${pr==='reitoria'?`<td class="p-4 font-bold text-uems-blue">${i.curso}</td>`:''}
                     <td class="p-4 font-black text-slate-400">${i.ano}</td>
                     <td class="p-4"><strong>${i.tipo}</strong><br>${escapeHTML(i.fragilidade)}</td>
@@ -394,7 +394,7 @@
                     <td class="p-4 text-slate-500 italic">${escapeHTML(i.recursos)}</td>
                     <td class="p-4"><strong>${escapeHTML(i.dataReuniao || '-')}</strong><br><span class="text-blue-500 break-all text-[10px]">${escapeHTML(i.minutaReuniao || '')}</span></td>
                     ${pr==='coordenador'?`<td class="p-4 text-center"><div class="flex gap-1 justify-center"><button class="bg-blue-50 text-blue-600 px-2 py-1 rounded-lg font-black uppercase text-[9px]" onclick="window.openEdit('${encodeURIComponent(JSON.stringify(i))}')">Editar</button><button class="bg-red-50 text-red-600 px-2 py-1 rounded-lg font-black text-[9px]" onclick="window.requestDel('${encodeURIComponent(JSON.stringify(i))}')">X</button></div></td>`:''}
-                </tr>`).join('') : `<tr><td colspan="9" class="p-10 text-center text-slate-400 italic font-medium">Nenhum registro encontrado.</td></tr>`;
+                </tr>`}).join('') : `<tr><td colspan="10" class="p-10 text-center text-slate-400 italic font-medium">Nenhum registro encontrado.</td></tr>`;
 
                 if(tF > currentPage*ITEMS_PER_PAGE){
                     $('pagination-container').classList.remove('hidden');
@@ -470,8 +470,9 @@
                     $('filter-curso-wrapper').classList.add('hidden');
                     $('filter-dimensao-wrapper').classList.add('hidden'); 
                 }
-
-                let h=`<button onclick="window.refreshData()" class="flex-1 md:flex-none px-6 py-3 bg-uems-blue text-white rounded-xl font-bold text-sm shadow-md hover:bg-uems-dark transition-all">Atualizar Dados</button>`;
+                
+                let h=`<button id="btn-export-pdf" onclick="window.gerarPDF()" class="flex-1 md:flex-none px-5 py-3 bg-slate-800 text-white rounded-xl font-bold text-sm shadow-md hover:bg-slate-900 transition-all flex items-center justify-center gap-2"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg> <span>Exportar PDF</span></button>`;
+                h+=`<button onclick="window.refreshData()" class="flex-1 md:flex-none px-6 py-3 bg-uems-blue text-white rounded-xl font-bold text-sm shadow-md hover:bg-uems-dark transition-all">Atualizar Dados</button>`;
                 if(p==='coordenador') h+=`<button onclick="window.showView('view-formulario'); window.scrollTo({top:0,behavior:'smooth'});" class="flex-1 md:flex-none px-5 py-3 bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl font-bold text-sm hover:bg-emerald-200 transition-all">Novo Registro</button>`;
                 h+=`<button onclick="window.logout()" class="flex-1 md:flex-none px-5 py-3 bg-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-300 transition-all border border-slate-300">Sair</button>`;
                 
@@ -479,14 +480,193 @@
                 refreshData(p);
             };
 
-            // Configuração do botão de sucesso
-            $('btn-close-success').onclick=()=>{
-                window.toggleModal('modal-success',false);
-                if(authMode==='coordenador'){ showView('view-formulario'); window.scrollTo({top:0,behavior:'smooth'}); }
-                else { window.showDashboard(authMode); }
+            // =========================================================================
+            // LÓGICA DE SELEÇÃO E EXPORTAÇÃO DINÂMICA DE PDF (DOWNLOAD DIRETO)
+            // =========================================================================
+            window.toggleSelection = function(cb) {
+                if(cb.checked) selectedForPDF.add(cb.value);
+                else selectedForPDF.delete(cb.value);
             };
 
-            const ySel=$('input-ano'), currY=new Date().getFullYear();
+            window.toggleSelectAll = function(cb) {
+                const checkboxes = document.querySelectorAll('.pdf-checkbox');
+                checkboxes.forEach(box => {
+                    box.checked = cb.checked;
+                    window.toggleSelection(box);
+                });
+            };
+
+            window.gerarPDF = function() {
+                if (selectedForPDF.size === 0) {
+                    return showAlert("Aviso", "Por favor, selecione (marque a caixinha) pelo menos uma fragilidade na tabela para baixar o PDF.");
+                }
+
+                // Efeito de Carregamento no Botão
+                const btnExport = document.getElementById('btn-export-pdf');
+                const originalBtnHTML = btnExport.innerHTML;
+                btnExport.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Gerando Arquivo...`;
+                btnExport.disabled = true;
+                btnExport.classList.add('opacity-80', 'cursor-not-allowed');
+
+                const dataAgora = new Date();
+                const formatoData = dataAgora.toLocaleDateString('pt-BR');
+                const formatoHora = dataAgora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const dataEmissao = `${formatoData} às ${formatoHora}`;
+
+                const isProe = (authMode === 'reitoria');
+                const filtroAno = document.getElementById('filter-ano').value || 'Todos';
+                let escopoCurso = isProe ? 'Todos os Cursos / Visão Geral' : userCourse;
+                
+                if (isProe && document.getElementById('filter-curso').value) {
+                    escopoCurso = `Filtro: ${document.getElementById('filter-curso').value}`;
+                }
+
+                // Definição Inteligente do Nome do Arquivo
+                let nomeDoArquivo = "";
+                if (isProe) {
+                    nomeDoArquivo = `Relatorio_Consolidado_PROE_${dataAgora.getTime()}.pdf`;
+                } else {
+                    let safeCursoName = userCourse.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                    nomeDoArquivo = `Plano_de_Acao_${safeCursoName}_${filtroAno}.pdf`;
+                }
+
+                const dadosExportacao = window.currentFilteredData.filter(i => {
+                    const uniqueId = i.ano + '|' + i.curso + '|' + i.fragilidade;
+                    return selectedForPDF.has(uniqueId);
+                });
+
+                let cardsHtml = dadosExportacao.map(i => {
+                    let headerCard = '';
+                    if (isProe) {
+                        headerCard = `
+                        <div style="background: #f2f2f2; border-bottom: 1px solid #000; padding: 7px 12px; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <span style="font-size: 14px; font-weight: 900; text-transform: uppercase;">${escapeHTML(i.curso)}</span>
+                                <span style="font-size: 8px; font-weight: 700; border: 1px solid #000; padding: 2px 8px; background: white; letter-spacing: 0.05em;">Ref: ${escapeHTML(i.ano)}</span>
+                            </div>
+                            <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Dimensão: ${escapeHTML(i.tipo)}</div>
+                        </div>`;
+                    } else {
+                        headerCard = `
+                        <div style="background: #f2f2f2; border-bottom: 1px solid #000; padding: 7px 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Dimensão: ${escapeHTML(i.tipo)}</span>
+                            <span style="font-size: 8px; font-weight: 700; border: 1px solid #000; padding: 2px 8px; background: white; letter-spacing: 0.05em;">Ref: ${escapeHTML(i.ano)}</span>
+                        </div>`;
+                    }
+
+                    return `
+                    <div class="evitar-quebra" style="border: 1px solid #000; margin-bottom: 14px; page-break-inside: avoid;">
+                        ${headerCard}
+                        <div style="padding: 12px;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px;">
+                                <div style="display: flex; flex-direction: column; gap: 2px; grid-column: 1 / -1;">
+                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">4. Descrição da Fragilidade</span>
+                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;">${escapeHTML(i.fragilidade).replace(/\n/g, '<br>')}</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 2px; grid-column: 1 / -1;">
+                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">7. Ação Prática Proposta</span>
+                                    <span style="font-size: 11px; font-weight: 700; color: #000; line-height: 1.4;">${escapeHTML(i.acao).replace(/\n/g, '<br>')}</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">5. Fonte / 6. Conceito</span>
+                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;">${escapeHTML(i.fonte)} <strong style="font-weight: 700; margin-left: 6px;">(Nota: ${escapeHTML(i.conceito)})</strong></span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">8. Prazo / 9. Responsável</span>
+                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;"><strong style="font-weight: 700; margin-right: 6px;">${escapeHTML(i.prazo)}</strong> — ${escapeHTML(i.responsavel)}</span>
+                                </div>
+                                <hr style="grid-column: 1 / -1; border: none; border-top: 1px dashed #999; margin: 2px 0;">
+                                <div style="display: flex; flex-direction: column; gap: 2px; grid-column: 1 / -1;">
+                                    <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">10. Recursos Necessários</span>
+                                    <span style="font-size: 11px; font-weight: 400; color: #000; line-height: 1.4;">${escapeHTML(i.recursos).replace(/\n/g, '<br>')}</span>
+                                </div>
+                                <div style="grid-column: 1 / -1; border: 1px solid #000; display: grid; grid-template-columns: 1fr 1fr;">
+                                    <div style="padding: 8px 10px; display: flex; flex-direction: column; gap: 2px;">
+                                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">11. Data da Reunião</span>
+                                        <span style="font-size: 11px; font-weight: 700; color: #000; line-height: 1.4;">${escapeHTML(i.dataReuniao || '-')}</span>
+                                    </div>
+                                    <div style="padding: 8px 10px; border-left: 1px solid #000; display: flex; flex-direction: column; gap: 2px;">
+                                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">12. Minuta da Reunião</span>
+                                        <span style="font-size: 11px; font-weight: 400; font-style: italic; color: #000; line-height: 1.4;">${escapeHTML(i.minutaReuniao || '-')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                // Container temporário Oculto na tela para renderizar o PDF
+                const tempContainer = document.createElement('div');
+                tempContainer.style.position = 'absolute';
+                tempContainer.style.left = '-9999px';
+                tempContainer.style.top = '0';
+                tempContainer.style.width = '210mm'; 
+                tempContainer.style.backgroundColor = '#ffffff';
+                tempContainer.style.padding = '15mm';
+                tempContainer.style.fontFamily = "'IBM Plex Sans', sans-serif";
+                tempContainer.style.color = "#000000";
+
+                tempContainer.innerHTML = `
+                    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 14px; margin-bottom: 18px;">
+                        <img src="https://www.uems.br/anexos/imagens/conteudo/uems_imagens_2023-09-22_13-02-19.png" crossorigin="anonymous" style="height: 64px; margin-bottom: 10px; filter: grayscale(100%); object-fit: contain;">
+                        <h1 style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.3; margin:0;">Divisão de Gestão do ENADE e Indicadores da Educação Superior</h1>
+                        <h2 style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #333; margin-top: 4px; margin-bottom:0;">${isProe ? 'Plano de Ação: Relatório Consolidado Institucional' : 'Relatório do Plano de Ação dos Cursos'}</h2>
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 18px;">
+                        <div>
+                            <span style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666; display: block; margin-bottom: 2px;">${isProe ? 'Escopo do Relatório' : 'Curso / Unidade Acadêmica'}</span>
+                            <span style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;">${escapeHTML(escopoCurso)}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666; display: block; margin-bottom: 2px;">${isProe ? 'Ano de Referência / Filtro' : 'Ano de Referência'}</span>
+                            <span style="font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;">${escapeHTML(filtroAno)}</span>
+                        </div>
+                    </div>
+
+                    <p style="font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; border-left: 3px solid #000; padding-left: 8px; margin-bottom: 12px;">Fragilidades Selecionadas (${dadosExportacao.length})</p>
+
+                    ${cardsHtml}
+
+                    <div style="margin-top: 20px; padding-top: 10px; border-top: 2px solid #000; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">${isProe ? 'Sistema PROE - UEMS' : 'Documento Institucional UEMS'}</span>
+                        <span style="font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #666;">Exportado em: ${dataEmissao}</span>
+                    </div>
+                `;
+
+                document.body.appendChild(tempContainer);
+
+                const opt = {
+                    margin:       [10, 10, 10, 10], 
+                    filename:     nomeDoArquivo,
+                    image:        { type: 'jpeg', quality: 0.98 },
+                    html2canvas:  { scale: 2, useCORS: true },
+                    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak:    { mode: ['avoid-all', 'css', 'legacy'] }
+                };
+
+                // Gera o PDF e limpa a tela automaticamente após baixar
+                html2pdf().set(opt).from(tempContainer).save().then(() => {
+                    document.body.removeChild(tempContainer);
+                    
+                    // Restaura o Botão
+                    btnExport.innerHTML = originalBtnHTML;
+                    btnExport.disabled = false;
+                    btnExport.classList.remove('opacity-80', 'cursor-not-allowed');
+
+                    // LIMPA AS SELEÇÕES DA TELA PARA EVITAR "LIXO" NO PRÓXIMO DOWNLOAD
+                    selectedForPDF.clear();
+                    window.renderTable();
+                }).catch(err => {
+                    console.error("Erro na geração do PDF:", err);
+                    showAlert("Erro", "Ocorreu um erro ao gerar o PDF. Verifique seu navegador.");
+                    btnExport.innerHTML = originalBtnHTML;
+                    btnExport.disabled = false;
+                    btnExport.classList.remove('opacity-80', 'cursor-not-allowed');
+                });
+            };
+
+            const ySel=document.getElementById('input-ano'), currY=new Date().getFullYear();
             for(let i=currY-1;i<=currY+4;i++){let o=document.createElement('option');o.value=i;o.innerText=i;if(i===currY)o.selected=true;ySel.appendChild(o);}
 
             // =========================================================================
@@ -541,7 +721,7 @@
 
                 const ids = ['input-fragilidade','input-fonte','input-conceito','input-acao','input-prazo','input-responsavel','input-recursos', 'input-data-reuniao', 'input-minuta'];
                 ids.forEach(id => {
-                    const el = $(id);
+                    const el = document.getElementById(id);
                     if (el) {
                         el.value = '';
                         el.dataset.typed = 'false';
@@ -562,7 +742,7 @@
             ];
 
             camposMagicos.forEach(campo => {
-                const el = $(campo.id);
+                const el = document.getElementById(campo.id);
                 if (el) {
                     el.addEventListener('focus', function() {
                         if (userCourse !== "Teste" || !magicData || isTyping || el.dataset.typed === 'true') return;
