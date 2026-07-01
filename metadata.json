@@ -1,0 +1,6 @@
+{
+  "name": "Plano de Ação UEMS",
+  "description": "Portal para gestão estratégica institucional e plano de ação dos cursos da UEMS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
