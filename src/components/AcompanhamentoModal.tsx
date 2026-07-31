@@ -3,6 +3,7 @@ import type { Fragility, User, Acompanhamento, StatusAcompanhamento } from '../t
 import { ClipboardCheck, X } from 'lucide-react';
 import { formatDateTimeBR } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { DatePickerInput } from './DatePickerInput';
 
 interface AcompanhamentoModalProps {
     isOpen: boolean;
@@ -14,29 +15,38 @@ interface AcompanhamentoModalProps {
 }
 
 const STATUS_OPTIONS: StatusAcompanhamento[] = [
-    'Em Andamento',
     'Concluída',
-    'Não Concluída',
-    'Suspensa'
+    'Prazo prorrogado',
+    'Não executada'
 ];
 
 export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave, isProcessing }: AcompanhamentoModalProps) {
-    const [status, setStatus] = useState<StatusAcompanhamento>('Em Andamento');
+    const [status, setStatus] = useState<StatusAcompanhamento>('Concluída');
     const [descricao, setDescricao] = useState('');
     const [registradoPor, setRegistradoPor] = useState(currentUser.role === 'reitoria' ? 'PROE' : (currentUser.courseName || ''));
+    const [novoPrazo, setNovoPrazo] = useState('');
 
     if (!isOpen || !item) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await onSave({
+        
+        const payload: Acompanhamento = {
             dataRegistro: new Date().toISOString(),
             status,
             descricao,
             registradoPor
-        });
+        };
+
+        if (status === 'Prazo prorrogado' && novoPrazo) {
+            payload.novoPrazo = novoPrazo;
+        }
+
+        await onSave(payload);
+
         setDescricao('');
-        setStatus('Em Andamento');
+        setNovoPrazo('');
+        setStatus('Concluída');
     };
 
     const getStatusColor = (s: string) => {
@@ -45,6 +55,8 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
             case 'Concluída': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
             case 'Não Concluída': return 'bg-red-100 text-red-700 border-red-200';
             case 'Suspensa': return 'bg-amber-100 text-amber-700 border-amber-200';
+            case 'Prazo prorrogado': return 'bg-orange-100 text-orange-700 border-orange-200';
+            case 'Não executada': return 'bg-red-100 text-red-700 border-red-200';
             default: return 'bg-slate-100 text-slate-700 border-slate-200';
         }
     };
@@ -122,14 +134,27 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
                             </select>
                         </div>
                         
+                        {status === 'Prazo prorrogado' && (
+                            <div>
+                                <label>Novo Prazo</label>
+                                <DatePickerInput 
+                                    name="novoPrazo"
+                                    value={novoPrazo}
+                                    onChange={(e) => setNovoPrazo(e.target.value)}
+                                    required
+                                    className="input-uems"
+                                />
+                            </div>
+                        )}
+
                         <div>
-                            <label>Descrição / Atualização</label>
+                            <label>Descrição / Justificativa</label>
                             <textarea 
                                 value={descricao} 
                                 onChange={(e) => setDescricao(e.target.value)} 
                                 rows={3} 
                                 className="input-uems font-medium" 
-                                placeholder="Descreva o andamento, o que foi feito, por que não foi possível concluir..."
+                                placeholder={status === 'Não executada' ? 'Por que não foi executada?' : status === 'Prazo prorrogado' ? 'Justificativa para a prorrogação...' : 'Descreva o andamento...'}
                                 required
                             />
                         </div>

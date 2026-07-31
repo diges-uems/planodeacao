@@ -162,9 +162,9 @@ export async function addAcompanhamento(
     fragilidadeAntiga: string,
     acompanhamento: Acompanhamento,
     id?: string
-): Promise<boolean> {
+): Promise<{ success: boolean, message?: string }> {
     try {
-        if (!API_URL) return false;
+        if (!API_URL) return { success: false, message: "API_URL não configurada." };
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
         
@@ -176,12 +176,12 @@ export async function addAcompanhamento(
         });
         
         clearTimeout(timeoutId);
-        if (!response.ok) return false;
+        if (!response.ok) return { success: false, message: `HTTP Error: ${response.status}` };
         const data = await response.json();
-        return data.success === true;
-    } catch(e) {
+        return { success: data.success === true, message: data.message };
+    } catch(e: any) {
         console.error("Add acompanhamento error:", e);
-        return false;
+        return { success: false, message: e.message || "Erro de rede" };
     }
 }
 
