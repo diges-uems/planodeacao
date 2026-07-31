@@ -7,6 +7,7 @@ import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, Alert
 import { ConfirmModal, MissingCoursesModal } from './Modals';
 import { EditModal } from './EditModal';
 import { AcompanhamentoModal } from './AcompanhamentoModal';
+import { ViewModal } from './ViewModal';
 
 interface DashboardProps {
     user: User;
@@ -27,6 +28,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const [isEditing, setIsEditing] = useState(false);
     const [itemToAcompanhar, setItemToAcompanhar] = useState<Fragility | null>(null);
     const [isAcompanhando, setIsAcompanhando] = useState(false);
+    const [itemToView, setItemToView] = useState<Fragility | null>(null);
     
     const [filterAnos, setFilterAnos] = useState<string[]>([]);
     const [selectedAno, setSelectedAno] = useState('');
@@ -174,19 +176,23 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const handleSaveAcompanhamento = async (acompanhamento: Acompanhamento) => {
         if (!itemToAcompanhar) return;
         setIsAcompanhando(true);
-        const success = await addAcompanhamento(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, acompanhamento, itemToAcompanhar.id);
-        if (success) {
+        const result = await addAcompanhamento(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, acompanhamento, itemToAcompanhar.id);
+        if (result.success) {
             setData(prev => prev.map(d => {
                 if (d.ano === itemToAcompanhar.ano && d.curso === itemToAcompanhar.curso && d.fragilidade === itemToAcompanhar.fragilidade) {
                     const acompanhamentos = d.acompanhamentos ? [...d.acompanhamentos] : [];
                     acompanhamentos.push(acompanhamento);
-                    return { ...d, acompanhamentos, statusAtual: acompanhamento.status };
+                    const updatedItem = { ...d, acompanhamentos, statusAtual: acompanhamento.status };
+                    if (acompanhamento.novoPrazo) {
+                        updatedItem.prazo = acompanhamento.novoPrazo;
+                    }
+                    return updatedItem;
                 }
                 return d;
             }));
             onShowAlert("Sucesso", "Acompanhamento registrado.");
         } else {
-            onShowAlert("Erro", "Falha ao registrar acompanhamento.");
+            onShowAlert("Erro", result.message || "Falha ao registrar acompanhamento.");
         }
         setIsAcompanhando(false);
         setItemToAcompanhar(null);
@@ -254,12 +260,40 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const renderStatusBadge = (row: Fragility) => {
         const status = row.statusAtual || (row.acompanhamentos && row.acompanhamentos.length > 0 ? row.acompanhamentos[row.acompanhamentos.length - 1].status : null);
         
-        if (!status) return <span className="text-slate-400 font-medium text-sm">—</span>;
+        const parseDate = (dStr: string) => {
+            if (!dStr) return null;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return new Date(dStr + "T00:00:00");
+            const parts = dStr.split('/');
+            if (parts.length === 3) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+            return null;
+        }
         
+        const datePrazo = parseDate(row.prazo);
+        const now = new Date();
+        now.setHours(0,0,0,0);
+
+        let displayStatus = 'Em execução';
+        let colorClass = 'bg-yellow-400';
+
+        if (status === 'Concluída') {
+            displayStatus = 'Concluída';
+            colorClass = 'bg-emerald-500';
+        } else if (status === 'Não executada') {
+            displayStatus = 'Não executada';
+            colorClass = 'bg-red-500';
+        } else if (datePrazo && datePrazo < now) {
+            displayStatus = 'Aguardando parecer';
+            colorClass = 'bg-blue-500';
+        } else if (status === 'Prazo prorrogado') {
+            displayStatus = 'Prazo prorrogado';
+            colorClass = 'bg-orange-500';
+        }
+
         return (
-            <span className="text-sm font-medium text-slate-700">
-                {status}
-            </span>
+            <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
+                <span className="text-sm font-medium text-slate-700">{displayStatus}</span>
+            </div>
         );
     };
 
@@ -533,7 +567,12 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                                                     </span>
                                                 )}
                                                 <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">{row.tipo}</span>
-                                                <span className="text-sm font-normal text-slate-700">{row.fragilidade}</span>
+                                                <button 
+                                                    onClick={() => setItemToView(row)}
+                                                    className="text-sm font-medium text-uems-blue hover:underline text-left cursor-pointer focus:outline-none"
+                                                >
+                                                    {row.fragilidade}
+                                                </button>
                                             </td>
                                             <td className="text-sm font-normal text-slate-700">{row.acao}</td>
                                             <td>
@@ -640,6 +679,13 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 onSave={handleSaveAcompanhamento}
                 isProcessing={isAcompanhando}
             />
+
+            {itemToView && (
+                <ViewModal 
+                    item={itemToView}
+                    onClose={() => setItemToView(null)}
+                />
+            )}
         </>
     );
 }

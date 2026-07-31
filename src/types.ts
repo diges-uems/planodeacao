@@ -2,13 +2,16 @@ export type StatusAcompanhamento =
   | 'Em Andamento'
   | 'Concluída'
   | 'Não Concluída'
-  | 'Suspensa';
+  | 'Suspensa'
+  | 'Prazo prorrogado'
+  | 'Não executada';
 
 export interface Acompanhamento {
   dataRegistro: string;
   status: StatusAcompanhamento;
   descricao: string;
   registradoPor: string;
+  novoPrazo?: string;
 }
 
 export interface Fragility {
