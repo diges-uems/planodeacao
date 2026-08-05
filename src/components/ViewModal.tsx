@@ -20,10 +20,10 @@ export function ViewModal({ item, onClose }: ViewModalProps) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
                 transition={{ duration: 0.15 }}
-                className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-[800px] max-h-[90vh] flex flex-col"
+                className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-[800px] max-h-[90vh] flex flex-col"
             >
                 <div className="flex justify-between items-center border-b border-slate-100 px-6 py-5 shrink-0">
-                    <h2 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                    <h2 className="font-serif-boletim italic text-base font-semibold text-slate-800 flex items-center gap-2">
                         {item.id && (
                             <span className="font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded text-sm">
                                 #{item.id}

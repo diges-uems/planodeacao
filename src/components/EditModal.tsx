@@ -57,10 +57,10 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto text-left"
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto text-left"
                     >
                         <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between sticky top-0 bg-white z-10">
-                            <h3 className="text-base font-semibold text-slate-800">
+                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800">
                                 Editar Registro
                             </h3>
                             <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
