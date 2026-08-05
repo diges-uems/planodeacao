@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { LogIn, Eye, EyeOff, XCircle, Loader2, AlertCircle } from 'lucide-react';
 import { login } from '../lib/api';
 import type { User } from '../types';
-import uemsProeLogo from '../assets/uems-proe-logo.png';
 
 interface LoginProps {
     onLogin: (user: User) => void;
@@ -67,10 +66,6 @@ export function Login({ onLogin }: LoginProps) {
                 <span className="absolute -top-px -right-px w-6 h-6 border-t-2 border-r-2 border-uems-gold"></span>
                 <span className="absolute -bottom-px -left-px w-6 h-6 border-b-2 border-l-2 border-uems-gold"></span>
                 <span className="absolute -bottom-px -right-px w-6 h-6 border-b-2 border-r-2 border-uems-gold"></span>
-            </div>
-
-            <div className="absolute top-12 left-12 md:top-16 md:left-16 z-20">
-                <img src={uemsProeLogo} alt="UEMS PROE" className="h-16 md:h-20 w-auto" />
             </div>
 
             <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-6 md:px-12 gap-12 text-left">
