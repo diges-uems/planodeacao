@@ -273,27 +273,31 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         now.setHours(0,0,0,0);
 
         let displayStatus = 'Em execução';
-        let colorClass = 'bg-yellow-400';
+        let sealColor = 'var(--color-seal-pendente)';
+        let sealBg = 'var(--color-seal-pendente-bg)';
 
         if (status === 'Concluída') {
             displayStatus = 'Concluída';
-            colorClass = 'bg-emerald-500';
+            sealColor = 'var(--color-seal-concluida)';
+            sealBg = 'var(--color-seal-concluida-bg)';
         } else if (status === 'Não executada') {
             displayStatus = 'Não executada';
-            colorClass = 'bg-red-500';
+            sealColor = 'var(--color-seal-nao-executada)';
+            sealBg = 'var(--color-seal-nao-executada-bg)';
         } else if (datePrazo && datePrazo < now) {
             displayStatus = 'Aguardando parecer';
-            colorClass = 'bg-blue-500';
+            sealColor = 'var(--color-seal-aguardando)';
+            sealBg = 'var(--color-seal-aguardando-bg)';
         } else if (status === 'Prazo prorrogado') {
             displayStatus = 'Prazo prorrogado';
-            colorClass = 'bg-orange-500';
+            sealColor = 'var(--color-seal-prorrogado)';
+            sealBg = 'var(--color-seal-prorrogado-bg)';
         }
 
         return (
-            <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
-                <span className="text-sm font-medium text-slate-700">{displayStatus}</span>
-            </div>
+            <span className="status-seal" style={{ color: sealColor, background: sealBg }}>
+                {displayStatus}
+            </span>
         );
     };
 
@@ -316,9 +320,9 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     return (
         <>
             <div className="space-y-6 w-full text-left">
-                <header className="bg-gradient-to-r from-uems-dark to-uems-blue px-6 py-4 sticky top-0 z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 -mx-4 sm:-mx-6 -mt-6 sm:-mt-2 gap-4 shadow-sm">
+                <header className="bg-gradient-to-r from-uems-dark to-uems-blue border-b-[3px] border-uems-gold px-6 py-4 sticky top-0 z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 -mx-4 sm:-mx-6 -mt-6 sm:-mt-2 gap-4 shadow-sm">
                     <div>
-                        <h1 className="text-xl font-semibold text-white">
+                        <h1 className="font-serif-boletim italic text-xl font-semibold text-white">
                             {isProe ? 'Painel PROE' : user.courseName}
                         </h1>
                         <span className="text-xs font-medium text-blue-200 uppercase tracking-wide">

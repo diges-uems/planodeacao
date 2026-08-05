@@ -26,10 +26,10 @@ export function AlertModal({ isOpen, onClose, title, message }: AlertModalProps)
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"
                     >
                         <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between">
-                            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800 flex items-center gap-2">
                                 <AlertTriangle className="w-5 h-5 text-amber-500" />
                                 {title}
                             </h3>
@@ -76,10 +76,10 @@ export function ConfirmModal({ isOpen, onClose, onConfirm, title, message, confi
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"
                     >
                         <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between">
-                            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800 flex items-center gap-2">
                                 <Trash2 className="w-5 h-5 text-red-500" />
                                 {title}
                             </h3>
@@ -131,10 +131,10 @@ export function CartModal({ isOpen, onClose, cart, onRemove, onEdit, onSubmit, i
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
                     >
                         <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between bg-white z-10 sticky top-0">
-                            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800 flex items-center gap-2">
                                 <Send className="w-5 h-5 text-uems-blue" />
                                 Itens para Enviar
                             </h3>
@@ -219,10 +219,10 @@ export function MissingCoursesModal({ isOpen, onClose, missingCourses }: Missing
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
                     >
                         <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between bg-white z-10 sticky top-0">
-                            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800 flex items-center gap-2">
                                 <SearchX className="w-5 h-5 text-amber-500" />
                                 Cursos Não Avaliados
                             </h3>
@@ -280,10 +280,10 @@ export function SuccessModal({ isOpen, onClose, message }: SuccessModalProps) {
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-sm max-h-[90vh] overflow-y-auto"
                     >
                         <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between">
-                            <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800 flex items-center gap-2">
                                 <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                                 Sucesso
                             </h3>

@@ -51,13 +51,25 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
 
     const getStatusColor = (s: string) => {
         switch (s) {
-            case 'Em Andamento': return 'bg-blue-100 text-blue-700 border-blue-200';
-            case 'Concluída': return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-            case 'Não Concluída': return 'bg-red-100 text-red-700 border-red-200';
-            case 'Suspensa': return 'bg-amber-100 text-amber-700 border-amber-200';
-            case 'Prazo prorrogado': return 'bg-orange-100 text-orange-700 border-orange-200';
-            case 'Não executada': return 'bg-red-100 text-red-700 border-red-200';
+            case 'Em Andamento': return 'border-transparent';
+            case 'Concluída': return 'border-transparent';
+            case 'Não Concluída': return 'border-transparent';
+            case 'Suspensa': return 'border-transparent';
+            case 'Prazo prorrogado': return 'border-transparent';
+            case 'Não executada': return 'border-transparent';
             default: return 'bg-slate-100 text-slate-700 border-slate-200';
+        }
+    };
+
+    const getStatusSeal = (s: string): React.CSSProperties => {
+        switch (s) {
+            case 'Em Andamento': return { color: 'var(--color-seal-aguardando)', background: 'var(--color-seal-aguardando-bg)' };
+            case 'Concluída': return { color: 'var(--color-seal-concluida)', background: 'var(--color-seal-concluida-bg)' };
+            case 'Não Concluída': return { color: 'var(--color-seal-nao-executada)', background: 'var(--color-seal-nao-executada-bg)' };
+            case 'Suspensa': return { color: 'var(--color-seal-pendente)', background: 'var(--color-seal-pendente-bg)' };
+            case 'Prazo prorrogado': return { color: 'var(--color-seal-prorrogado)', background: 'var(--color-seal-prorrogado-bg)' };
+            case 'Não executada': return { color: 'var(--color-seal-nao-executada)', background: 'var(--color-seal-nao-executada-bg)' };
+            default: return {};
         }
     };
 
@@ -72,10 +84,10 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.96, y: 8 }}
                         transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 sm:p-10 no-scrollbar text-left"
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 sm:p-10 no-scrollbar text-left"
                     >
                         <header className="mb-8 border-b border-slate-100 pb-6 flex items-center justify-between sticky top-0 bg-white z-10 -mt-2 pt-2">
-                    <h3 className="text-xl font-semibold text-slate-900 flex items-center gap-3">
+                    <h3 className="font-serif-boletim italic text-xl font-semibold text-slate-900 flex items-center gap-3">
                         <span className="w-10 h-10 rounded-lg bg-blue-50 text-uems-blue flex items-center justify-center shadow-inner">
                             <ClipboardCheck className="w-5 h-5" />
                         </span>
@@ -95,7 +107,7 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
                                 {acompanhamentos.map((acomp, idx) => (
                                     <div key={idx} className="p-4 rounded-lg bg-slate-50 border border-slate-100 shadow-sm flex flex-col gap-2">
                                         <div className="flex items-center justify-between">
-                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-semibold border uppercase tracking-wide ${getStatusColor(acomp.status)}`}>
+                                            <span className={`status-seal ${getStatusColor(acomp.status)}`} style={getStatusSeal(acomp.status)}>
                                                 {acomp.status}
                                             </span>
                                             <span className="text-xs font-bold text-slate-400">

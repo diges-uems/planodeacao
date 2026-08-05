@@ -44,10 +44,10 @@ export function RegisterEmailModal({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.97 }}
         transition={{ duration: 0.15, ease: "easeOut" }}
-        className="bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto"
       >
         <div className="border-b border-slate-100 px-6 py-5">
-          <h2 className="text-base font-semibold text-slate-800">Cadastro de E-mail do Curso</h2>
+          <h2 className="font-serif-boletim italic text-base font-semibold text-slate-800">Cadastro de E-mail do Curso</h2>
         </div>
 
         <div className="p-6">
