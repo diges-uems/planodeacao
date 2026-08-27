@@ -82,7 +82,7 @@ export default function App() {
 
     const handleSubmitCart = async () => {
         setIsSubmitting(true);
-        const success = await submitCart(cart);
+        const success = await submitCart(cart, user!.token);
         setIsSubmitting(false);
         
         if (success) {
@@ -97,7 +97,7 @@ export default function App() {
     const handleSaveEmail = async (email: string) => {
         if (!user || !user.courseId) return;
         setIsRegisteringEmail(true);
-        const success = await registerCourseEmail(user.courseId, email);
+        const success = await registerCourseEmail(user.courseId, email, user.token);
         setIsRegisteringEmail(false);
         
         if (success) {

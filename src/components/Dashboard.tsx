@@ -51,8 +51,8 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const loadData = async () => {
         setLoading(true);
         const [result, deadlines] = await Promise.all([
-            fetchDashboardData(),
-            isProe ? getDeadlines() : Promise.resolve({})
+            fetchDashboardData(user.token),
+            isProe ? getDeadlines(user.token) : Promise.resolve({})
         ]);
         
         if (result) {
@@ -144,7 +144,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         if (!itemToDelete) return;
         setIsDeleting(true);
         setData(prev => prev.filter(d => !(d.ano === itemToDelete.ano && d.curso === itemToDelete.curso && d.fragilidade === itemToDelete.fragilidade)));
-        const success = await deleteFragility(itemToDelete.ano, itemToDelete.curso, itemToDelete.fragilidade, itemToDelete.codigoCurso, itemToDelete.id);
+        const success = await deleteFragility(itemToDelete.ano, itemToDelete.curso, itemToDelete.fragilidade, itemToDelete.codigoCurso, user.token, itemToDelete.id);
         if (success && !isProe) {
             onConsumirLiberacao?.();
             onShowAlert("Atenção", "A alteração foi salva. A liberação de acesso foi utilizada e voltou ao estado bloqueado. Solicite uma nova liberação à PROE caso precise corrigir outro registro.");
@@ -156,7 +156,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const handleSaveEdit = async (newData: Partial<Fragility>) => {
         if (!itemToEdit) return;
         setIsEditing(true);
-        const success = await updateFragility(itemToEdit.ano, itemToEdit.curso, itemToEdit.fragilidade, itemToEdit.codigoCurso, newData, itemToEdit.id);
+        const success = await updateFragility(itemToEdit.ano, itemToEdit.curso, itemToEdit.fragilidade, itemToEdit.codigoCurso, newData, user.token, itemToEdit.id);
         if (success) {
             setData(prev => prev.map(d => 
                 (d.ano === itemToEdit.ano && d.curso === itemToEdit.curso && d.fragilidade === itemToEdit.fragilidade)
@@ -176,7 +176,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const handleSaveAcompanhamento = async (acompanhamento: Acompanhamento) => {
         if (!itemToAcompanhar) return;
         setIsAcompanhando(true);
-        const result = await addAcompanhamento(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, acompanhamento, itemToAcompanhar.id);
+        const result = await addAcompanhamento(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, acompanhamento, user.token, itemToAcompanhar.id);
         if (result.success) {
             setData(prev => prev.map(d => {
                 if (d.ano === itemToAcompanhar.ano && d.curso === itemToAcompanhar.curso && d.fragilidade === itemToAcompanhar.fragilidade) {
@@ -253,7 +253,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         }
         
         deadlineSaveTimer.current = setTimeout(() => {
-            saveDeadlines(updated);
+            saveDeadlines(updated, user.token);
         }, 500);
     };
 
@@ -338,7 +338,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                         </button>
                         {isProe && (
                             <>
-                                <button onClick={() => { sendTestEmail(); onShowAlert('Sucesso', 'Gatilho de e-mail disparado!'); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
+                                <button onClick={() => { sendTestEmail(user.token); onShowAlert('Sucesso', 'Gatilho de e-mail disparado!'); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
                                     <Mail className="w-4 h-4" /> Testar E-mail
                                 </button>
                                 <a 
@@ -408,17 +408,26 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between" style={{ borderLeft: '3px solid #00338C' }}>
+                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between">
                                 <div className="text-2xl font-semibold text-slate-800 font-mono">{dim1Count}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Didático-Pedagógica</div>
+                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#00338C' }} />
+                                    Didático-Pedagógica
+                                </div>
                             </div>
-                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between" style={{ borderLeft: '3px solid #7F77DD' }}>
+                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between">
                                 <div className="text-2xl font-semibold text-slate-800 font-mono">{dim2Count}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Corpo Docente</div>
+                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#7F77DD' }} />
+                                    Corpo Docente
+                                </div>
                             </div>
-                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between" style={{ borderLeft: '3px solid #EF9F27' }}>
+                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between">
                                 <div className="text-2xl font-semibold text-slate-800 font-mono">{dim3Count}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Infraestrutura</div>
+                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#EF9F27' }} />
+                                    Infraestrutura
+                                </div>
                             </div>
                         </div>
                     </div>

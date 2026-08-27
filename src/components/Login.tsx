@@ -34,13 +34,14 @@ export function Login({ onLogin }: LoginProps) {
         setIsLoading(false);
 
         if (result.success) {
-            onLogin({ 
-                role: result.role, 
-                courseId: result.courseId, 
+            onLogin({
+                role: result.role,
+                courseId: result.courseId,
                 courseName: result.courseName,
                 courses: result.courses,
                 emailRegistrado: result.emailRegistrado,
-                podeEditar: result.podeEditar
+                podeEditar: result.podeEditar,
+                token: result.token
             });
         } else {
             setError(true);
