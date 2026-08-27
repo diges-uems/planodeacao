@@ -1,12 +1,12 @@
 import { API_URL } from './constants';
 import type { Fragility, Acompanhamento } from '../types';
 
-export async function fetchDashboardData(): Promise<Fragility[] | null> {
+export async function fetchDashboardData(token: string): Promise<Fragility[] | null> {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+
+        const response = await fetch(`${API_URL}?t=${Date.now()}&token=${encodeURIComponent(token)}`, {
             signal: controller.signal
         });
         clearTimeout(timeoutId);
@@ -19,16 +19,16 @@ export async function fetchDashboardData(): Promise<Fragility[] | null> {
     }
 }
 
-export async function submitCart(cart: Fragility[]): Promise<boolean> {
+export async function submitCart(cart: Fragility[], token: string): Promise<boolean> {
     try {
         if (!API_URL) return false;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
+
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(cart),
+            body: JSON.stringify(cart.map(item => ({ ...item, token }))),
             signal: controller.signal
         });
         
@@ -42,16 +42,16 @@ export async function submitCart(cart: Fragility[]): Promise<boolean> {
     }
 }
 
-export async function deleteFragility(ano: string, curso: string, fragilidadeAntiga: string, codigoCurso: string, id?: string): Promise<boolean> {
+export async function deleteFragility(ano: string, curso: string, fragilidadeAntiga: string, codigoCurso: string, token: string, id?: string): Promise<boolean> {
     try {
         if (!API_URL) return false;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
+
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'delete', ano, curso, fragilidadeAntiga, codigoCurso, id }),
+            body: JSON.stringify({ action: 'delete', ano, curso, fragilidadeAntiga, codigoCurso, id, token }),
             signal: controller.signal
         });
         
@@ -71,23 +71,25 @@ export async function updateFragility(
     fragilidadeAntiga: string,
     codigoCurso: string,
     newData: Partial<Fragility>,
+    token: string,
     id?: string
 ): Promise<boolean> {
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
+
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ 
-                action: 'update', 
-                ano, 
-                curso, 
+            body: JSON.stringify({
+                action: 'update',
+                ano,
+                curso,
                 fragilidadeAntiga,
                 codigoCurso,
                 newData,
-                id
+                id,
+                token
             }),
             signal: controller.signal
         });
@@ -101,10 +103,10 @@ export async function updateFragility(
     }
 }
 
-export async function sendTestEmail(): Promise<boolean> {
+export async function sendTestEmail(token: string): Promise<boolean> {
     try {
         if (!API_URL) return false;
-        const payload = { action: 'test_email' };
+        const payload = { action: 'test_email', token };
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             body: JSON.stringify(payload),
@@ -161,17 +163,18 @@ export async function addAcompanhamento(
     curso: string,
     fragilidadeAntiga: string,
     acompanhamento: Acompanhamento,
+    token: string,
     id?: string
 ): Promise<{ success: boolean, message?: string }> {
     try {
         if (!API_URL) return { success: false, message: "API_URL não configurada." };
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
+
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'add_acompanhamento', ano, curso, fragilidadeAntiga, acompanhamento, id }),
+            body: JSON.stringify({ action: 'add_acompanhamento', ano, curso, fragilidadeAntiga, acompanhamento, id, token }),
             signal: controller.signal
         });
         
@@ -185,10 +188,10 @@ export async function addAcompanhamento(
     }
 }
 
-export async function getDeadlines(): Promise<Record<string, string>> {
+export async function getDeadlines(token: string): Promise<Record<string, string>> {
     try {
         if (!API_URL) return {};
-        const response = await fetch(`${API_URL}?action=get_deadlines&t=${Date.now()}`);
+        const response = await fetch(`${API_URL}?action=get_deadlines&t=${Date.now()}&token=${encodeURIComponent(token)}`);
         if (!response.ok) return {};
         const data = await response.json();
         if (data && data.success) {
@@ -201,16 +204,16 @@ export async function getDeadlines(): Promise<Record<string, string>> {
     }
 }
 
-export async function saveDeadlines(deadlines: Record<string, string>): Promise<boolean> {
+export async function saveDeadlines(deadlines: Record<string, string>, token: string): Promise<boolean> {
     try {
         if (!API_URL) return false;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
+
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'save_deadlines', deadlines }),
+            body: JSON.stringify({ action: 'save_deadlines', deadlines, token }),
             signal: controller.signal
         });
         
@@ -224,16 +227,16 @@ export async function saveDeadlines(deadlines: Record<string, string>): Promise<
     }
 }
 
-export async function registerCourseEmail(courseId: string, email: string): Promise<boolean> {
+export async function registerCourseEmail(courseId: string, email: string, token: string): Promise<boolean> {
     try {
         if (!API_URL) return false;
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
+
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'register_course_email', courseId, email }),
+            body: JSON.stringify({ action: 'register_course_email', courseId, email, token }),
             signal: controller.signal
         });
         

@@ -41,6 +41,7 @@ export interface User {
     courses?: Record<string, string>;
     emailRegistrado?: boolean;
     podeEditar?: boolean;
+    token: string;
 }
 
 export type ViewState = 'login' | 'formulario' | 'dashboard';
