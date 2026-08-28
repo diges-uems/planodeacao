@@ -9,5 +9,10 @@ export const DIMENSIONS = [
 export const SOURCES = [
     "Relatório Enade (INEP)",
     "Avaliação in loco (CEE/MS)",
-    "Relatório de Autoavaliação"
+    "Relatório de Autoavaliação",
+    "Outra"
 ];
+
+// Prefixo usado para gravar uma fonte digitada livremente (opção "Outra") dentro do
+// próprio campo "fonte", sem precisar de uma coluna nova na planilha.
+export const OUTRA_FONTE_PREFIXO = "Outra: ";

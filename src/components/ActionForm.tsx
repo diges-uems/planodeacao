@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Fragility, User } from '../types';
-import { DIMENSIONS, SOURCES } from '../lib/constants';
+import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
 
 interface ActionFormProps {
@@ -68,6 +68,10 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
     });
 
     const [typedFields, setTypedFields] = useState<Set<string>>(new Set());
+    const [outraFonteTexto, setOutraFonteTexto] = useState('');
+
+    const fonteEhOutra = formData.fonte === 'Outra' || formData.fonte?.startsWith(OUTRA_FONTE_PREFIXO);
+    const fonteSelectValue = fonteEhOutra ? 'Outra' : (formData.fonte || '');
 
     const handleMagicFocus = (field: keyof Fragility) => {
         if (user.courseName !== 'Teste' || !formData.tipo) return;
@@ -87,6 +91,22 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
+    const handleFonteSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value;
+        if (value === 'Outra') {
+            setFormData(prev => ({ ...prev, fonte: outraFonteTexto ? OUTRA_FONTE_PREFIXO + outraFonteTexto : 'Outra' }));
+        } else {
+            setOutraFonteTexto('');
+            setFormData(prev => ({ ...prev, fonte: value }));
+        }
+    };
+
+    const handleOutraFonteTextoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const texto = e.target.value;
+        setOutraFonteTexto(texto);
+        setFormData(prev => ({ ...prev, fonte: OUTRA_FONTE_PREFIXO + texto }));
+    };
+
     const handleRadioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newTipo = e.target.value;
         
@@ -94,10 +114,11 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
             setFormData(prev => ({
                 ...prev,
                 tipo: newTipo,
-                fragilidade: '', fonte: '', conceito: '', acao: '', 
-                prazo: '', responsavel: '', recursos: '', dataReuniao: '', minutaReuniao: '' 
+                fragilidade: '', fonte: '', conceito: '', acao: '',
+                prazo: '', responsavel: '', recursos: '', dataReuniao: '', minutaReuniao: ''
             }));
             setTypedFields(new Set());
+            setOutraFonteTexto('');
         } else {
             setFormData(prev => ({ 
                 ...prev, 
@@ -114,13 +135,18 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
             return;
         }
 
+        if (fonteEhOutra && !outraFonteTexto.trim()) {
+            showAlert("Atenção", "Descreva a fonte identificadora em \"Outra\".");
+            return;
+        }
+
         onSaveToCart({
             ano: formData.ano!,
             codigoCurso: formData.codigoCurso!,
             curso: formData.curso!,
             tipo: formData.tipo || "N/A",
             fragilidade: formData.fragilidade.trim(),
-            fonte: formData.fonte!,
+            fonte: fonteEhOutra ? OUTRA_FONTE_PREFIXO + outraFonteTexto.trim() : formData.fonte!,
             conceito: formData.conceito.trim(),
             acao: formData.acao!.trim(),
             prazo: formData.prazo!.trim(),
@@ -144,6 +170,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
             minutaReuniao: ''
         }));
         setTypedFields(new Set());
+        setOutraFonteTexto('');
     };
 
     const handleReviewClick = () => {
@@ -232,17 +259,27 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label>Fonte Identificadora</label>
-                                <select 
-                                    name="fonte" 
-                                    value={formData.fonte} 
-                                    onChange={handleChange} 
+                                <select
+                                    name="fonte"
+                                    value={fonteSelectValue}
+                                    onChange={handleFonteSelectChange}
                                     onFocus={() => handleMagicFocus('fonte')}
-                                    required 
+                                    required
                                     className="input-uems"
                                 >
                                     <option value="">Selecione...</option>
                                     {SOURCES.map(source => <option key={source} value={source}>{source}</option>)}
                                 </select>
+                                {fonteEhOutra && (
+                                    <input
+                                        type="text"
+                                        value={outraFonteTexto}
+                                        onChange={handleOutraFonteTextoChange}
+                                        required
+                                        className="input-uems mt-2"
+                                        placeholder="Descreva a fonte identificadora"
+                                    />
+                                )}
                             </div>
                             <div>
                                 <label>Conceito</label>
