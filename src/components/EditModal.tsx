@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Fragility } from '../types';
-import { DIMENSIONS, SOURCES } from '../lib/constants';
+import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { formatDateTimeBR } from '../lib/utils';
 import { DatePickerInput } from './DatePickerInput';
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,6 +15,10 @@ interface EditModalProps {
 
 export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditModalProps) {
     const [formData, setFormData] = useState<Partial<Fragility>>({});
+    const [outraFonteTexto, setOutraFonteTexto] = useState('');
+
+    const fonteEhOutra = formData.fonte === 'Outra' || formData.fonte?.startsWith(OUTRA_FONTE_PREFIXO);
+    const fonteSelectValue = fonteEhOutra ? 'Outra' : (formData.fonte || '');
 
     useEffect(() => {
         if (item) {
@@ -30,6 +34,7 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                 dataReuniao: item.dataReuniao ? formatDateTimeBR(item.dataReuniao) : '',
                 minutaReuniao: item.minutaReuniao || ''
             });
+            setOutraFonteTexto(item.fonte?.startsWith(OUTRA_FONTE_PREFIXO) ? item.fonte.slice(OUTRA_FONTE_PREFIXO.length) : '');
         }
     }, [item]);
 
@@ -37,8 +42,25 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
         setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
     };
 
+    const handleFonteSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value;
+        if (value === 'Outra') {
+            setFormData(prev => ({ ...prev, fonte: outraFonteTexto ? OUTRA_FONTE_PREFIXO + outraFonteTexto : 'Outra' }));
+        } else {
+            setOutraFonteTexto('');
+            setFormData(prev => ({ ...prev, fonte: value }));
+        }
+    };
+
+    const handleOutraFonteTextoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const texto = e.target.value;
+        setOutraFonteTexto(texto);
+        setFormData(prev => ({ ...prev, fonte: OUTRA_FONTE_PREFIXO + texto }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (fonteEhOutra && !outraFonteTexto.trim()) return;
         await onSave(formData);
     };
 
@@ -79,10 +101,20 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                                 </div>
                                 <div>
                                     <label>Fonte</label>
-                                    <select name="fonte" value={formData.fonte || ''} onChange={handleChange} className="input-uems" required>
+                                    <select name="fonte" value={fonteSelectValue} onChange={handleFonteSelectChange} className="input-uems" required>
                                         <option value="">Selecione...</option>
                                         {SOURCES.map(source => <option key={source} value={source}>{source}</option>)}
                                     </select>
+                                    {fonteEhOutra && (
+                                        <input
+                                            type="text"
+                                            value={outraFonteTexto}
+                                            onChange={handleOutraFonteTextoChange}
+                                            required
+                                            className="input-uems mt-2"
+                                            placeholder="Descreva a fonte identificadora"
+                                        />
+                                    )}
                                 </div>
                             </div>
                             <div>
