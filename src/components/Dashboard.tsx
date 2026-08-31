@@ -679,7 +679,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                                                 )}
                                             </td>
                                             <td className="text-center group">
-                                                <div className="flex flex-wrap gap-2 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex flex-wrap gap-2 justify-center">
                                                     {!isProe && (
                                                         <button onClick={() => setItemToAcompanhar(row)} className="text-slate-400 hover:text-slate-700 bg-transparent hover:bg-transparent transition-colors p-1" title="Acompanhamento">
                                                             <ClipboardList className="w-[14px] h-[14px]" />
