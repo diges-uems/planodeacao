@@ -123,6 +123,40 @@ export async function sendTestEmail(token: string): Promise<boolean> {
     }
 }
 
+export async function checkLiberacao(token: string): Promise<boolean | null> {
+    try {
+        if (!API_URL) return null;
+        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'check_liberacao', token }),
+            headers: { 'Content-Type': 'text/plain' },
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.success === true ? Boolean(data.podeEditar) : null;
+    } catch (error) {
+        console.error("Check liberação erro:", error);
+        return null;
+    }
+}
+
+export async function liberarEdicao(codigoCurso: string, token: string): Promise<boolean> {
+    try {
+        if (!API_URL) return false;
+        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'liberar_edicao', codigoCurso, token }),
+            headers: { 'Content-Type': 'text/plain' },
+        });
+        if (!response.ok) return false;
+        const data = await response.json();
+        return data.success === true;
+    } catch (error) {
+        console.error("Liberar edição erro:", error);
+        return false;
+    }
+}
+
 export async function login(password: string): Promise<any> {
     try {
         if (!API_URL) {
