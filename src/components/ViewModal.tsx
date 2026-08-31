@@ -2,6 +2,7 @@ import React from 'react';
 import { Fragility } from '../types';
 import { X } from 'lucide-react';
 import { motion } from 'motion/react';
+import { formatResponsaveisResumo } from '../lib/utils';
 
 interface ViewModalProps {
     item: Fragility;
@@ -86,7 +87,7 @@ export function ViewModal({ item, onClose }: ViewModalProps) {
                                 </div>
                                 <div>
                                     <span className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Responsável</span>
-                                    <span className="text-sm text-slate-900">{item.responsavel}</span>
+                                    <span className="text-sm text-slate-900">{formatResponsaveisResumo(item.responsavel)}</span>
                                 </div>
                                 <div>
                                     <span className="block text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Recursos Necessários</span>

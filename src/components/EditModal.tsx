@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import type { Fragility } from '../types';
+import type { Fragility, Responsavel } from '../types';
 import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
-import { formatDateTimeBR } from '../lib/utils';
+import { formatDateTimeBR, parseResponsaveis, serializeResponsaveis } from '../lib/utils';
 import { DatePickerInput } from './DatePickerInput';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -16,6 +16,23 @@ interface EditModalProps {
 export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditModalProps) {
     const [formData, setFormData] = useState<Partial<Fragility>>({});
     const [outraFonteTexto, setOutraFonteTexto] = useState('');
+    const [responsaveis, setResponsaveis] = useState<Responsavel[]>([{ nome: '', feito: false }]);
+
+    const handleResponsavelNomeChange = (index: number, nome: string) => {
+        setResponsaveis(prev => prev.map((r, i) => i === index ? { ...r, nome } : r));
+    };
+
+    const handleResponsavelFeitoChange = (index: number, feito: boolean) => {
+        setResponsaveis(prev => prev.map((r, i) => i === index ? { ...r, feito } : r));
+    };
+
+    const handleAddResponsavel = () => {
+        setResponsaveis(prev => [...prev, { nome: '', feito: false }]);
+    };
+
+    const handleRemoveResponsavel = (index: number) => {
+        setResponsaveis(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
+    };
 
     const fonteEhOutra = formData.fonte === 'Outra' || formData.fonte?.startsWith(OUTRA_FONTE_PREFIXO);
     const fonteSelectValue = fonteEhOutra ? 'Outra' : (formData.fonte || '');
@@ -35,6 +52,8 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                 minutaReuniao: item.minutaReuniao || ''
             });
             setOutraFonteTexto(item.fonte?.startsWith(OUTRA_FONTE_PREFIXO) ? item.fonte.slice(OUTRA_FONTE_PREFIXO.length) : '');
+            const parsed = parseResponsaveis(item.responsavel);
+            setResponsaveis(parsed.length > 0 ? parsed : [{ nome: '', feito: false }]);
         }
     }, [item]);
 
@@ -61,7 +80,8 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (fonteEhOutra && !outraFonteTexto.trim()) return;
-        await onSave(formData);
+        if (!responsaveis.some(r => r.nome.trim())) return;
+        await onSave({ ...formData, responsavel: serializeResponsaveis(responsaveis) });
     };
 
     return (
@@ -143,8 +163,36 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <div>
-                                    <label>Responsável</label>
-                                    <input type="text" name="responsavel" value={formData.responsavel || ''} onChange={handleChange} className="input-uems" required />
+                                    <label>Responsável(is)</label>
+                                    <div className="space-y-2">
+                                        {responsaveis.map((r, index) => (
+                                            <div key={index} className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={r.nome}
+                                                    onChange={(e) => handleResponsavelNomeChange(index, e.target.value)}
+                                                    required={index === 0}
+                                                    className="input-uems flex-1"
+                                                />
+                                                <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={r.feito}
+                                                        onChange={(e) => handleResponsavelFeitoChange(index, e.target.checked)}
+                                                    />
+                                                    Concluiu
+                                                </label>
+                                                {responsaveis.length > 1 && (
+                                                    <button type="button" onClick={() => handleRemoveResponsavel(index)} className="text-slate-400 hover:text-red-500 bg-transparent hover:bg-transparent px-1">
+                                                        ✕
+                                                    </button>
+                                                )}
+                                            </div>
+                                        ))}
+                                        <button type="button" onClick={handleAddResponsavel} className="text-xs font-semibold text-uems-blue hover:text-uems-dark bg-transparent hover:bg-transparent px-0">
+                                            + Adicionar responsável
+                                        </button>
+                                    </div>
                                 </div>
                                 <div>
                                     <label>Recursos</label>

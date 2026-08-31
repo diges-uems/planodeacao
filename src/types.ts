@@ -14,6 +14,11 @@ export interface Acompanhamento {
   novoPrazo?: string;
 }
 
+export interface Responsavel {
+  nome: string;
+  feito: boolean;
+}
+
 export interface Fragility {
     _id?: string;
     id?: string;

@@ -1,3 +1,35 @@
+import type { Responsavel } from '../types';
+
+export function parseResponsaveis(raw: string | null | undefined): Responsavel[] {
+    if (!raw) return [];
+    const str = String(raw).trim();
+    if (!str) return [];
+    if (str.startsWith('[')) {
+        try {
+            const parsed = JSON.parse(str);
+            if (Array.isArray(parsed)) {
+                return parsed
+                    .filter((p) => p && typeof p.nome === 'string' && p.nome.trim())
+                    .map((p) => ({ nome: p.nome.trim(), feito: Boolean(p.feito) }));
+            }
+        } catch (e) {
+            // não é JSON válido, cai no formato legado abaixo
+        }
+    }
+    return [{ nome: str, feito: false }];
+}
+
+export function serializeResponsaveis(list: Responsavel[]): string {
+    const validos = list.filter(r => r.nome.trim());
+    if (validos.length === 0) return '';
+    if (validos.length === 1 && !validos[0].feito) return validos[0].nome.trim();
+    return JSON.stringify(validos.map(r => ({ nome: r.nome.trim(), feito: Boolean(r.feito) })));
+}
+
+export function formatResponsaveisResumo(raw: string | null | undefined): string {
+    return parseResponsaveis(raw).map(r => r.nome).join(', ');
+}
+
 export function formatDateTimeBR(dateString: string | null | undefined): string {
     if (!dateString) return '-';
     const d = new Date(dateString);
@@ -87,7 +119,7 @@ export function generatePdfHtml(
                     </div>
                     <div class="field">
                         <span class="field-label">8. Data Final / 9. Responsável</span>
-                        <span class="field-value"><strong>${escapeHTML(i.prazo)}</strong> — ${escapeHTML(i.responsavel)}</span>
+                        <span class="field-value"><strong>${escapeHTML(i.prazo)}</strong> — ${escapeHTML(formatResponsaveisResumo(i.responsavel))}</span>
                     </div>
                     <hr class="divider-dashed">
                     <div class="field full">
