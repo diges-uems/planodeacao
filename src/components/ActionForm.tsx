@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Fragility, User, Responsavel } from '../types';
 import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
@@ -87,6 +87,38 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
     const fonteEhOutra = formData.fonte === 'Outra' || formData.fonte?.startsWith(OUTRA_FONTE_PREFIXO);
     const fonteSelectValue = fonteEhOutra ? 'Outra' : (formData.fonte || '');
 
+    const typingIntervalsRef = useRef<Record<string, ReturnType<typeof setInterval>>>({});
+
+    useEffect(() => {
+        const intervals = typingIntervalsRef.current;
+        return () => {
+            Object.values(intervals).forEach(clearInterval);
+        };
+    }, []);
+
+    const typeIntoField = (field: keyof Fragility, fullText: string) => {
+        let charCount = 0;
+        const velocidade = 18; // ms por caractere
+
+        const interval = setInterval(() => {
+            charCount++;
+            const parcial = fullText.slice(0, charCount);
+
+            if (field === 'responsavel') {
+                setResponsaveis(parseResponsaveis(parcial));
+            } else {
+                setFormData(prev => ({ ...prev, [field]: parcial }));
+            }
+
+            if (charCount >= fullText.length) {
+                clearInterval(interval);
+                delete typingIntervalsRef.current[field as string];
+            }
+        }, velocidade);
+
+        typingIntervalsRef.current[field as string] = interval;
+    };
+
     const handleMagicFocus = (field: keyof Fragility) => {
         if (user.courseName !== 'Teste' || !formData.tipo) return;
         const magicData = MAGIC_DADOS[formData.tipo];
@@ -97,12 +129,8 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
         const textToType = magicData[field] || '';
         if (!textToType) return;
 
-        if (field === 'responsavel') {
-            setResponsaveis(parseResponsaveis(textToType as string));
-        } else {
-            setFormData(prev => ({ ...prev, [field]: textToType }));
-        }
         setTypedFields(prev => new Set(prev).add(field as string));
+        typeIntoField(field, textToType as string);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -129,6 +157,8 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
         const newTipo = e.target.value;
         
         if (user.courseName === 'Teste') {
+            Object.values(typingIntervalsRef.current).forEach(clearInterval);
+            typingIntervalsRef.current = {};
             setFormData(prev => ({
                 ...prev,
                 tipo: newTipo,
