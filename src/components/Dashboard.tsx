@@ -92,7 +92,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 podeEditarAnteriorRef.current = podeEditar;
                 onPodeEditarAtualizado(podeEditar);
             }
-        }, 20000);
+        }, 8000);
         return () => clearInterval(interval);
     }, [isProe, user.token, onPodeEditarAtualizado, onShowAlert]);
 
