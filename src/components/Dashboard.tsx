@@ -76,16 +76,25 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
 
     // Coordenador: verifica periodicamente se a PROE liberou edição/exclusão,
     // sem precisar recarregar a página.
+    const podeEditarAnteriorRef = useRef(user.podeEditar);
+    useEffect(() => {
+        podeEditarAnteriorRef.current = user.podeEditar;
+    }, [user.podeEditar]);
+
     useEffect(() => {
         if (isProe || !onPodeEditarAtualizado) return;
         const interval = setInterval(async () => {
             const podeEditar = await checkLiberacao(user.token);
             if (podeEditar !== null) {
+                if (podeEditar && !podeEditarAnteriorRef.current) {
+                    onShowAlert("Edição liberada", "A PROE liberou a edição/exclusão de um registro do seu curso. Os botões já estão disponíveis na tabela.");
+                }
+                podeEditarAnteriorRef.current = podeEditar;
                 onPodeEditarAtualizado(podeEditar);
             }
         }, 20000);
         return () => clearInterval(interval);
-    }, [isProe, user.token, onPodeEditarAtualizado]);
+    }, [isProe, user.token, onPodeEditarAtualizado, onShowAlert]);
 
     const [liberandoCodigoCurso, setLiberandoCodigoCurso] = useState<string | null>(null);
 
