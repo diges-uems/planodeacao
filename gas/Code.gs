@@ -421,6 +421,25 @@ function doPost(e) {
     if (!claims) return respostaNaoAutorizado();
 
     // =====================================================================
+    // VERIFICAR LIBERAÇÃO DE EDIÇÃO (polling do coordenador, evita reload)
+    // =====================================================================
+    if (data.action === "check_liberacao") {
+      if (claims.role !== 'coordenador') return respostaNaoAutorizado();
+      var cursosSheetCheck = ss.getSheetByName('CURSOS');
+      if (!cursosSheetCheck) return ContentService.createTextOutput(JSON.stringify({ success: true, podeEditar: false })).setMimeType(ContentService.MimeType.JSON);
+
+      var cDataCheck = cursosSheetCheck.getDataRange().getValues();
+      var podeEditarAtual = false;
+      for (var ci = 1; ci < cDataCheck.length; ci++) {
+        if (String(cDataCheck[ci][1]) === String(claims.courseId)) {
+          podeEditarAtual = String(cDataCheck[ci][4] || "").trim().toUpperCase() === "SIM";
+          break;
+        }
+      }
+      return ContentService.createTextOutput(JSON.stringify({ success: true, podeEditar: podeEditarAtual })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =====================================================================
     // REGISTER COURSE EMAIL
     // =====================================================================
     if (data.action === "register_course_email") {

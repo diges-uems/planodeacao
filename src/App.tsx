@@ -115,6 +115,10 @@ export default function App() {
         }
     };
 
+    const handlePodeEditarAtualizado = (podeEditar: boolean) => {
+        setUser(prev => (prev && prev.podeEditar !== podeEditar) ? { ...prev, podeEditar } : prev);
+    };
+
     return (
         <>
             {view === 'login' && (
@@ -169,6 +173,7 @@ export default function App() {
                                 onNewRecord={user.role === 'coordenador' ? () => setView('formulario') : undefined} 
                                 onShowAlert={(title, message) => setAlertState({ title, message })}
                                 onConsumirLiberacao={handleConsumirLiberacao}
+                                onPodeEditarAtualizado={handlePodeEditarAtualizado}
                             />
                         )}
                     </main>

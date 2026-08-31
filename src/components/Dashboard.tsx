@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento } from '../lib/api';
+import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao } from '../lib/api';
 import { generatePdfHtml, sanitizeSearch, formatDateTimeBR, parseResponsaveis, serializeResponsaveis, formatResponsaveisResumo } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
-import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList } from 'lucide-react';
+import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList, Unlock } from 'lucide-react';
 import { ConfirmModal, MissingCoursesModal } from './Modals';
 import { EditModal } from './EditModal';
 import { AcompanhamentoModal } from './AcompanhamentoModal';
@@ -16,9 +16,10 @@ interface DashboardProps {
     onEdit?: (fragility: Fragility) => void;
     onShowAlert: (title: string, message: string) => void;
     onConsumirLiberacao?: () => void;
+    onPodeEditarAtualizado?: (podeEditar: boolean) => void;
 }
 
-export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, onConsumirLiberacao }: DashboardProps) {
+export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, onConsumirLiberacao, onPodeEditarAtualizado }: DashboardProps) {
     const isProe = user.role === 'reitoria';
     const [data, setData] = useState<Fragility[]>([]);
     const [loading, setLoading] = useState(true);
@@ -72,6 +73,32 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     useEffect(() => {
         loadData();
     }, []);
+
+    // Coordenador: verifica periodicamente se a PROE liberou edição/exclusão,
+    // sem precisar recarregar a página.
+    useEffect(() => {
+        if (isProe || !onPodeEditarAtualizado) return;
+        const interval = setInterval(async () => {
+            const podeEditar = await checkLiberacao(user.token);
+            if (podeEditar !== null) {
+                onPodeEditarAtualizado(podeEditar);
+            }
+        }, 20000);
+        return () => clearInterval(interval);
+    }, [isProe, user.token, onPodeEditarAtualizado]);
+
+    const [liberandoCodigoCurso, setLiberandoCodigoCurso] = useState<string | null>(null);
+
+    const handleLiberarEdicao = async (codigoCurso: string, curso: string) => {
+        setLiberandoCodigoCurso(codigoCurso);
+        const success = await liberarEdicao(codigoCurso, user.token);
+        setLiberandoCodigoCurso(null);
+        if (success) {
+            onShowAlert("Sucesso", `Edição/exclusão liberada para ${curso}. O coordenador não precisa recarregar a página.`);
+        } else {
+            onShowAlert("Erro", "Falha ao liberar edição.");
+        }
+    };
 
     const userCourses = user.courses || {};
 
@@ -625,7 +652,14 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                                             <td>
                                                 <div className="text-sm text-slate-700 space-y-1">
                                                     <div><span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Data Final:</span> {prazoDisplay}</div>
-                                                    <div><span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">RP:</span> {formatResponsaveisResumo(row.responsavel)}</div>
+                                                    <div>
+                                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">RP:</span>{' '}
+                                                        {parseResponsaveis(row.responsavel).map((r, i, arr) => (
+                                                            <span key={i} className={r.feito ? 'text-emerald-600 font-medium' : ''}>
+                                                                {r.feito ? `✓ ${r.nome}` : r.nome}{i < arr.length - 1 ? ', ' : ''}
+                                                            </span>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </td>
                                             <td className="text-sm font-normal text-slate-700">{row.recursos}</td>
@@ -640,6 +674,16 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                                                     {!isProe && (
                                                         <button onClick={() => setItemToAcompanhar(row)} className="text-slate-400 hover:text-slate-700 bg-transparent hover:bg-transparent transition-colors p-1" title="Acompanhamento">
                                                             <ClipboardList className="w-[14px] h-[14px]" />
+                                                        </button>
+                                                    )}
+                                                    {isProe && (
+                                                        <button
+                                                            onClick={() => handleLiberarEdicao(row.codigoCurso, row.curso)}
+                                                            disabled={liberandoCodigoCurso === row.codigoCurso}
+                                                            className="text-slate-400 hover:text-emerald-600 bg-transparent hover:bg-transparent transition-colors p-1 disabled:opacity-50"
+                                                            title={`Liberar edição/exclusão para ${row.curso}`}
+                                                        >
+                                                            <Unlock className="w-[14px] h-[14px]" />
                                                         </button>
                                                     )}
                                                     {!isProe && user.podeEditar && (
