@@ -131,26 +131,17 @@ body {
     display: block;
   }
 
-  /* Selo circular de status: linguagem de carimbo/selo de ata oficial */
+  /* Selo de status: linguagem de carimbo/selo de ata oficial */
   .status-seal {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    padding: 4px 10px 4px 6px;
+    padding: 4px 10px;
     border-radius: 999px;
     border: 1px solid transparent;
-  }
-  .status-seal::before {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: currentColor;
-    box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent);
   }
 
   .app-table th {
