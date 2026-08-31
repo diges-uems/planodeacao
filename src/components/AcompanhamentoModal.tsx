@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Fragility, User, Acompanhamento, StatusAcompanhamento } from '../types';
 import { ClipboardCheck, X } from 'lucide-react';
-import { formatDateTimeBR } from '../lib/utils';
+import { formatDateTimeBR, parseResponsaveis } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { DatePickerInput } from './DatePickerInput';
 
@@ -11,6 +11,7 @@ interface AcompanhamentoModalProps {
     item: Fragility | null;
     currentUser: User;
     onSave: (acompanhamento: Acompanhamento) => Promise<void>;
+    onToggleResponsavel: (index: number, feito: boolean) => Promise<void>;
     isProcessing: boolean;
 }
 
@@ -20,7 +21,7 @@ const STATUS_OPTIONS: StatusAcompanhamento[] = [
     'Não executada'
 ];
 
-export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave, isProcessing }: AcompanhamentoModalProps) {
+export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave, onToggleResponsavel, isProcessing }: AcompanhamentoModalProps) {
     const [status, setStatus] = useState<StatusAcompanhamento>('Concluída');
     const [descricao, setDescricao] = useState('');
     const [registradoPor, setRegistradoPor] = useState(currentUser.role === 'reitoria' ? 'PROE' : (currentUser.courseName || ''));
@@ -99,6 +100,25 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
                 </header>
 
                 <div className="space-y-8">
+                    {/* Checklist de Responsáveis */}
+                    <div>
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">Responsáveis</h4>
+                        <div className="space-y-2">
+                            {parseResponsaveis(item.responsavel).map((r, idx) => (
+                                <label key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100 text-sm text-slate-700 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={r.feito}
+                                        disabled={isProcessing}
+                                        onChange={(e) => onToggleResponsavel(idx, e.target.checked)}
+                                    />
+                                    <span className={r.feito ? 'line-through text-slate-400' : 'font-medium'}>{r.nome}</span>
+                                    {r.feito && <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-600 ml-auto">Concluiu sua parte</span>}
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Histórico */}
                     <div>
                         <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">Histórico</h4>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento } from '../lib/api';
-import { generatePdfHtml, sanitizeSearch, formatDateTimeBR } from '../lib/utils';
+import { generatePdfHtml, sanitizeSearch, formatDateTimeBR, parseResponsaveis, serializeResponsaveis, formatResponsaveisResumo } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
 import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList } from 'lucide-react';
@@ -196,6 +196,36 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         }
         setIsAcompanhando(false);
         setItemToAcompanhar(null);
+    };
+
+    const handleToggleResponsavel = async (index: number, feito: boolean) => {
+        if (!itemToAcompanhar) return;
+        const lista = parseResponsaveis(itemToAcompanhar.responsavel);
+        if (!lista[index]) return;
+        lista[index] = { ...lista[index], feito };
+        const responsavelSerializado = serializeResponsaveis(lista);
+        const newData: Partial<Fragility> = {
+            tipo: itemToAcompanhar.tipo,
+            fragilidade: itemToAcompanhar.fragilidade,
+            fonte: itemToAcompanhar.fonte,
+            conceito: itemToAcompanhar.conceito,
+            acao: itemToAcompanhar.acao,
+            prazo: itemToAcompanhar.prazo,
+            responsavel: responsavelSerializado,
+            recursos: itemToAcompanhar.recursos,
+            dataReuniao: itemToAcompanhar.dataReuniao,
+            minutaReuniao: itemToAcompanhar.minutaReuniao
+        };
+        const success = await updateFragility(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, itemToAcompanhar.codigoCurso, newData, user.token, itemToAcompanhar.id);
+        if (success) {
+            setItemToAcompanhar(prev => prev ? { ...prev, responsavel: responsavelSerializado } : prev);
+            setData(prev => prev.map(d =>
+                (d.ano === itemToAcompanhar.ano && d.curso === itemToAcompanhar.curso && d.fragilidade === itemToAcompanhar.fragilidade)
+                    ? { ...d, responsavel: responsavelSerializado } : d
+            ));
+        } else {
+            onShowAlert("Erro", "Falha ao atualizar responsável.");
+        }
     };
 
     const handleExportPdf = () => {
@@ -595,7 +625,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                                             <td>
                                                 <div className="text-sm text-slate-700 space-y-1">
                                                     <div><span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Data Final:</span> {prazoDisplay}</div>
-                                                    <div><span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">RP:</span> {row.responsavel}</div>
+                                                    <div><span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">RP:</span> {formatResponsaveisResumo(row.responsavel)}</div>
                                                 </div>
                                             </td>
                                             <td className="text-sm font-normal text-slate-700">{row.recursos}</td>
@@ -690,6 +720,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 item={itemToAcompanhar}
                 currentUser={user}
                 onSave={handleSaveAcompanhamento}
+                onToggleResponsavel={handleToggleResponsavel}
                 isProcessing={isAcompanhando}
             />
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import type { Fragility, User } from '../types';
+import type { Fragility, User, Responsavel } from '../types';
 import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
+import { parseResponsaveis, serializeResponsaveis } from '../lib/utils';
 
 interface ActionFormProps {
     user: User;
@@ -69,6 +70,19 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
 
     const [typedFields, setTypedFields] = useState<Set<string>>(new Set());
     const [outraFonteTexto, setOutraFonteTexto] = useState('');
+    const [responsaveis, setResponsaveis] = useState<Responsavel[]>([{ nome: '', feito: false }]);
+
+    const handleResponsavelNomeChange = (index: number, nome: string) => {
+        setResponsaveis(prev => prev.map((r, i) => i === index ? { ...r, nome } : r));
+    };
+
+    const handleAddResponsavel = () => {
+        setResponsaveis(prev => [...prev, { nome: '', feito: false }]);
+    };
+
+    const handleRemoveResponsavel = (index: number) => {
+        setResponsaveis(prev => prev.length === 1 ? prev : prev.filter((_, i) => i !== index));
+    };
 
     const fonteEhOutra = formData.fonte === 'Outra' || formData.fonte?.startsWith(OUTRA_FONTE_PREFIXO);
     const fonteSelectValue = fonteEhOutra ? 'Outra' : (formData.fonte || '');
@@ -83,7 +97,11 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
         const textToType = magicData[field] || '';
         if (!textToType) return;
 
-        setFormData(prev => ({ ...prev, [field]: textToType }));
+        if (field === 'responsavel') {
+            setResponsaveis(parseResponsaveis(textToType as string));
+        } else {
+            setFormData(prev => ({ ...prev, [field]: textToType }));
+        }
         setTypedFields(prev => new Set(prev).add(field as string));
     };
 
@@ -119,6 +137,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
             }));
             setTypedFields(new Set());
             setOutraFonteTexto('');
+            setResponsaveis([{ nome: '', feito: false }]);
         } else {
             setFormData(prev => ({ 
                 ...prev, 
@@ -140,6 +159,11 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
             return;
         }
 
+        if (!responsaveis.some(r => r.nome.trim())) {
+            showAlert("Atenção", "Informe ao menos um responsável.");
+            return;
+        }
+
         onSaveToCart({
             ano: formData.ano!,
             codigoCurso: formData.codigoCurso!,
@@ -150,7 +174,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
             conceito: formData.conceito.trim(),
             acao: formData.acao!.trim(),
             prazo: formData.prazo!.trim(),
-            responsavel: formData.responsavel!.trim(),
+            responsavel: serializeResponsaveis(responsaveis),
             recursos: formData.recursos!.trim(),
             dataReuniao: formData.dataReuniao!.trim(),
             minutaReuniao: formData.minutaReuniao!.trim()
@@ -171,6 +195,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
         }));
         setTypedFields(new Set());
         setOutraFonteTexto('');
+        setResponsaveis([{ nome: '', feito: false }]);
     };
 
     const handleReviewClick = () => {
@@ -181,7 +206,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
 
         const hasPendingData = Boolean(
             formData.fragilidade?.trim() || formData.acao?.trim() || formData.conceito?.trim() ||
-            formData.prazo?.trim() || formData.responsavel?.trim() || formData.recursos?.trim() ||
+            formData.prazo?.trim() || responsaveis.some(r => r.nome.trim()) || formData.recursos?.trim() ||
             formData.dataReuniao?.trim() || formData.minutaReuniao?.trim()
         );
 
@@ -329,16 +354,38 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
                             </div>
                             <div>
                                 <label>Responsável</label>
-                                <input 
-                                    type="text" 
-                                    name="responsavel" 
-                                    value={formData.responsavel} 
-                                    onChange={handleChange} 
-                                    onFocus={() => handleMagicFocus('responsavel')}
-                                    required 
-                                    className="input-uems" 
-                                    placeholder="Ex: Coordenador" 
-                                />
+                                <div className="space-y-2">
+                                    {responsaveis.map((r, index) => (
+                                        <div key={index} className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={r.nome}
+                                                onChange={(e) => handleResponsavelNomeChange(index, e.target.value)}
+                                                onFocus={() => handleMagicFocus('responsavel')}
+                                                required={index === 0}
+                                                className="input-uems flex-1"
+                                                placeholder="Ex: Coordenador"
+                                            />
+                                            {responsaveis.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveResponsavel(index)}
+                                                    className="text-slate-400 hover:text-red-500 bg-transparent hover:bg-transparent px-2"
+                                                    title="Remover responsável"
+                                                >
+                                                    ✕
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={handleAddResponsavel}
+                                        className="text-xs font-semibold text-uems-blue hover:text-uems-dark bg-transparent hover:bg-transparent px-0"
+                                    >
+                                        + Adicionar responsável
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
