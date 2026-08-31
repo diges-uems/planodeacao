@@ -1,9 +1,14 @@
 import type { Responsavel } from '../types';
 
+const RESPONSAVEL_SEPARADOR = ' | ';
+const RESPONSAVEL_MARCA_FEITO = '✓ ';
+
 export function parseResponsaveis(raw: string | null | undefined): Responsavel[] {
     if (!raw) return [];
     const str = String(raw).trim();
     if (!str) return [];
+
+    // Formato legado em JSON (registros salvos antes desta mudança).
     if (str.startsWith('[')) {
         try {
             const parsed = JSON.parse(str);
@@ -13,17 +18,31 @@ export function parseResponsaveis(raw: string | null | undefined): Responsavel[]
                     .map((p) => ({ nome: p.nome.trim(), feito: Boolean(p.feito) }));
             }
         } catch (e) {
-            // não é JSON válido, cai no formato legado abaixo
+            // não é JSON válido, segue para os formatos abaixo
         }
     }
-    return [{ nome: str, feito: false }];
+
+    if (str.includes(RESPONSAVEL_SEPARADOR)) {
+        return str.split(RESPONSAVEL_SEPARADOR)
+            .map(part => part.trim())
+            .filter(Boolean)
+            .map(part => {
+                const feito = part.startsWith(RESPONSAVEL_MARCA_FEITO);
+                const nome = feito ? part.slice(RESPONSAVEL_MARCA_FEITO.length).trim() : part;
+                return { nome, feito };
+            });
+    }
+
+    const feitoUnico = str.startsWith(RESPONSAVEL_MARCA_FEITO);
+    return [{ nome: feitoUnico ? str.slice(RESPONSAVEL_MARCA_FEITO.length).trim() : str, feito: feitoUnico }];
 }
 
 export function serializeResponsaveis(list: Responsavel[]): string {
     const validos = list.filter(r => r.nome.trim());
     if (validos.length === 0) return '';
-    if (validos.length === 1 && !validos[0].feito) return validos[0].nome.trim();
-    return JSON.stringify(validos.map(r => ({ nome: r.nome.trim(), feito: Boolean(r.feito) })));
+    return validos
+        .map(r => (r.feito ? RESPONSAVEL_MARCA_FEITO + r.nome.trim() : r.nome.trim()))
+        .join(RESPONSAVEL_SEPARADOR);
 }
 
 export function formatResponsaveisResumo(raw: string | null | undefined): string {
