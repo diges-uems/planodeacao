@@ -209,6 +209,29 @@ function doGet(e) {
 }
 
 /**
+ * Registra uma linha na aba "Log_Acessos" (login, edição, exclusão, liberação, etc).
+ * Cria a aba com cabeçalho na primeira chamada. Falhas de log nunca derrubam a ação
+ * principal (login, salvar, excluir...) — por isso o try/catch engolindo o erro.
+ */
+function registrarLog(role, courseId, courseName, acao, detalhe) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Log_Acessos');
+    if (!sheet) {
+      sheet = ss.insertSheet('Log_Acessos');
+      sheet.appendRow(['Data/Hora', 'Papel', 'Código Curso', 'Curso', 'Ação', 'Detalhe']);
+      sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f1f5f9');
+      sheet.setFrozenRows(1);
+      sheet.setColumnWidth(6, 350);
+    }
+    var timestamp = Utilities.formatDate(new Date(), "GMT-04:00", "dd/MM/yyyy HH:mm:ss");
+    sheet.appendRow([timestamp, role || '', courseId || '', courseName || '', acao || '', detalhe || '']);
+  } catch (err) {
+    // Log é auxiliar; nunca deve quebrar a ação principal.
+  }
+}
+
+/**
  * Insere novas linhas em uma tabela específica de curso dentro de uma aba de ano ou auditoria.
  * Localiza a tabela do curso (ou cria uma nova com cabeçalhos azul/cinza) e adiciona
  * os dados mantendo o formato de texto nas datas usando setNumberFormat("@").
@@ -379,6 +402,7 @@ function doPost(e) {
              }
           }
         }
+        registrarLog('reitoria', '', 'PROE', 'login', 'Login da PROE bem-sucedido.');
         return ContentService.createTextOutput(JSON.stringify({
           success: true, role: 'reitoria', courses: courses,
           token: gerarToken('reitoria', null, null)
@@ -397,6 +421,7 @@ function doPost(e) {
       var inputHash = Utilities.base64Encode(data.password);
       for (var i = 1; i < cData.length; i++) {
         if (cData[i][0] === inputHash) {
+          registrarLog('coordenador', cData[i][1], cData[i][2], 'login', 'Login do coordenador bem-sucedido.');
           return ContentService.createTextOutput(JSON.stringify({
               success: true,
               role: 'coordenador',
@@ -409,6 +434,7 @@ function doPost(e) {
         }
       }
 
+      registrarLog('', '', '', 'login_falha', 'Tentativa de login com senha inválida.');
       return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Senha inválida' })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -479,6 +505,7 @@ function doPost(e) {
         ss.getSheetByName('CURSOS_EMAIL').getRange(match.linha, 4).setValue(email);
       }
 
+      registrarLog(claims.role, courseId, courseNameAtual, 'register_course_email', 'E-mail cadastrado: ' + email);
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -499,6 +526,7 @@ function doPost(e) {
       if (rows.length > 0) {
         sheet.getRange(1, 1, rows.length, 2).setValues(rows);
       }
+      registrarLog('reitoria', '', 'PROE', 'save_deadlines', rows.length + ' prazo(s) salvo(s).');
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -559,6 +587,7 @@ function doPost(e) {
          emailDestino
       );
 
+      registrarLog('reitoria', '', curso, data.action, 'Cobrança enviada — ID: ' + id + ', Fragilidade: ' + fragilidade);
       return ContentService.createTextOutput(JSON.stringify({ success: true, message: 'E-mail enviado' })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -595,6 +624,7 @@ function doPost(e) {
       }
 
       cursosSheet.getRange(linhaEncontrada, 5).setValue("SIM");
+      registrarLog('reitoria', data.codigoCurso, cData[linhaEncontrada - 1][2], 'liberar_edicao', 'PROE liberou edição/exclusão para o curso.');
       return ContentService.createTextOutput(JSON.stringify({ success: true, message: 'Edição liberada.' })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -681,6 +711,7 @@ function doPost(e) {
          }
       }
 
+      registrarLog(claims.role, claims.courseId, claims.courseName, 'envio_lote', registrosAdicionados + ' registro(s) inserido(s): ' + cursosAfetadosStr.replace(/<[^>]+>/g, ' ').trim());
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -735,6 +766,7 @@ function doPost(e) {
 
           sheet.deleteRow(rowIndex);
           revogarLiberacao(nomeCursoDaLinha);
+          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'delete', 'Registro #' + (data.id || 'antigo') + ' excluído: ' + data.fragilidadeAntiga);
 
           var headersExclusao = ["Data/Hora da Exclusão", "Código", "Curso", "Ano Ref.", "Dimensão", "Fragilidade", "Fonte", "Conceito", "Ação", "Data Final", "Responsável", "Recursos", "Data da Reunião", "Minuta da Reunião"];
           inserirRegistroEmTabelaCurso("Exclusões", data.curso, data.codigoCurso, headersExclusao, [[
@@ -791,6 +823,7 @@ function doPost(e) {
               }
           }
 
+          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'update', 'Registro #' + (data.id || 'antigo') + ' editado: ' + p.fragilidade);
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
         } else if (data.action === "add_acompanhamento") {
           var acompStr = sheet.getRange(rowIndex, 16).getValue();
@@ -810,6 +843,7 @@ function doPost(e) {
             }
           }
 
+          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'add_acompanhamento', 'Registro #' + (data.id || 'antigo') + ' — status: ' + (data.acompanhamento && data.acompanhamento.status));
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
         }
       }
