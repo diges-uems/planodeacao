@@ -646,7 +646,7 @@ function doPost(e) {
                               (prazoTexto ? "<div class='detail-row'><span class='detail-label sans'>Prazo Final</span><span class='detail-value sans'>" + prazoTexto + "</span></div>" : "");
 
         enviarEmail(
-          "[PROE/UEMS] Prazo de Cadastro se Encerrando - Plano de Ação",
+          "[PROE/UEMS] Prazo de Cadastro se Encerrando",
           introducaoAlerta,
           detalhesAlerta,
           false,
@@ -977,6 +977,7 @@ function generateEmailTemplate(title, messageBody, detalhesContexto, sheetLink, 
 "    .header { padding: 40px; text-align: center; background: linear-gradient(135deg, #00338C 0%, #001f4d 100%); }\n" +
 "    .header img { height: 40px; filter: brightness(0) invert(1); margin-bottom: 12px; }\n" +
 "    .header-subtitle { color: #C8A84B; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 500; margin: 0; }\n" +
+"    .header-subtitle + .header-subtitle { margin-top: 4px; }\n" +
 "    .highlight-band { height: 4px; background-color: #C8A84B; width: 100%; }\n" +
 "    .content { padding: 50px 40px; }\n" +
 "    .title { font-size: 26px; color: #001f4d; margin: 0 0 24px 0; line-height: 1.3; font-weight: 600; }\n" +
@@ -999,7 +1000,8 @@ function generateEmailTemplate(title, messageBody, detalhesContexto, sheetLink, 
 "    <div class='container'>\n" +
 "      <div class='header'>\n" +
 "        <img src='https://www.uems.br/assets/img/logo-uems.png' alt='UEMS'>\n" +
-"        <p class='header-subtitle'>Pró-Reitoria de Ensino — Sistema de Planos de Ação</p>\n" +
+"        <p class='header-subtitle'>Pró-Reitoria de Ensino</p>\n" +
+"        <p class='header-subtitle'>Plano de Ação</p>\n" +
 "      </div>\n" +
 "      <div class='highlight-band'></div>\n" +
 "      <div class='content'>\n" +
@@ -1014,8 +1016,7 @@ function generateEmailTemplate(title, messageBody, detalhesContexto, sheetLink, 
 "      <div class='footer sans'>\n" +
 "        <div class='footer-divider'></div>\n" +
 "        Este é um comunicado automático gerado pelo ecossistema integrado da <strong class='footer-highlight'>PROE/UEMS</strong>.<br>\n" +
-"        Ação sincronizada em: <strong>" + dataOperacao + "</strong> (Fuso MS).<br><br>\n" +
-"        <i>Este endereço de e-mail é apenas para envios, por favor, não responda.</i>\n" +
+"        Ação sincronizada em: <strong>" + dataOperacao + "</strong> (Fuso MS).\n" +
 "      </div>\n" +
 "    </div>\n" +
 "  </div>\n" +
