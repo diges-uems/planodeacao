@@ -650,7 +650,8 @@ function doPost(e) {
           introducaoAlerta,
           detalhesAlerta,
           false,
-          emailCursoAlerta
+          emailCursoAlerta,
+          "enade@uems.br"
         );
         enviados++;
         registrarLog('reitoria', cDataAlerta[ai][1], courseNameAlerta, 'alerta_prazo', 'Alerta de prazo enviado para ' + emailCursoAlerta + (prazoTexto ? ' — prazo: ' + prazoTexto : ''));
@@ -923,7 +924,7 @@ function doPost(e) {
  * Envia para enade@uems.br e, opcionalmente, para um destinatário específico (toOverride)
  * ou para o e-mail do curso se NOTIFICACOES_POR_CURSO_ATIVAS = true.
  */
-function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverride) {
+function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverride, ccEmail) {
   var targetEmail = toOverride || "enade@uems.br"; // ALVO RECEBEDOR
 
   var sheetLink = SpreadsheetApp.getActiveSpreadsheet().getUrl();
@@ -932,11 +933,15 @@ function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverri
   var htmlBody = generateEmailTemplate(assunto, textoPrincipal, detalhesContexto || "", sheetLink, dataOperacao, isTest || false);
 
   try {
-    MailApp.sendEmail({
+    var options = {
       to: targetEmail,
       subject: assunto,
       htmlBody: htmlBody
-    });
+    };
+    if (ccEmail && ccEmail.toLowerCase() !== targetEmail.toLowerCase()) {
+      options.cc = ccEmail;
+    }
+    MailApp.sendEmail(options);
   } catch (e) {
     console.error("Falha ao enviar e-mail: " + e.message);
   }
