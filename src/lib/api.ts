@@ -157,6 +157,22 @@ export async function liberarEdicao(codigoCurso: string, token: string): Promise
     }
 }
 
+export async function enviarAlertaPrazo(unidade: string, prazo: string, mensagem: string, token: string): Promise<{ success: boolean; enviados?: number; semEmail?: string[]; message?: string }> {
+    try {
+        if (!API_URL) return { success: false, message: 'URL da API não configurada.' };
+        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'enviar_alerta_prazo', unidade, prazo, mensagem, token }),
+            headers: { 'Content-Type': 'text/plain' },
+        });
+        if (!response.ok) return { success: false, message: 'Falha na comunicação com o servidor.' };
+        return await response.json();
+    } catch (error) {
+        console.error("Alerta de prazo erro:", error);
+        return { success: false, message: 'Erro de conexão.' };
+    }
+}
+
 export async function login(password: string): Promise<any> {
     try {
         if (!API_URL) {
