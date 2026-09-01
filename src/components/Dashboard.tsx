@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao } from '../lib/api';
+import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao, enviarAlertaPrazo } from '../lib/api';
 import { generatePdfHtml, sanitizeSearch, formatDateTimeBR, parseResponsaveis, serializeResponsaveis, formatResponsaveisResumo } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
-import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList, Unlock } from 'lucide-react';
+import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList, Unlock, BellRing } from 'lucide-react';
 import { ConfirmModal, MissingCoursesModal } from './Modals';
 import { EditModal } from './EditModal';
 import { AcompanhamentoModal } from './AcompanhamentoModal';
 import { ViewModal } from './ViewModal';
+import { AlertaPrazoModal } from './AlertaPrazoModal';
 
 interface DashboardProps {
     user: User;
@@ -106,6 +107,24 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
             onShowAlert("Sucesso", `Edição/exclusão liberada para ${curso}. O coordenador não precisa recarregar a página.`);
         } else {
             onShowAlert("Erro", "Falha ao liberar edição.");
+        }
+    };
+
+    const [isAlertaPrazoOpen, setIsAlertaPrazoOpen] = useState(false);
+    const [isEnviandoAlertaPrazo, setIsEnviandoAlertaPrazo] = useState(false);
+
+    const handleEnviarAlertaPrazo = async (unidade: string, prazo: string, mensagem: string) => {
+        setIsEnviandoAlertaPrazo(true);
+        const result = await enviarAlertaPrazo(unidade, prazo, mensagem, user.token);
+        setIsEnviandoAlertaPrazo(false);
+        if (result.success) {
+            setIsAlertaPrazoOpen(false);
+            const semEmailMsg = result.semEmail && result.semEmail.length > 0
+                ? ` ${result.semEmail.length} curso(s) sem e-mail cadastrado não receberam (veja o log na planilha): ${result.semEmail.join(', ')}.`
+                : '';
+            onShowAlert("Alerta enviado", `${result.enviados || 0} curso(s) da unidade ${unidade} notificado(s).${semEmailMsg}`);
+        } else {
+            onShowAlert("Erro", result.message || "Falha ao enviar o alerta de prazo.");
         }
     };
 
@@ -406,6 +425,9 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                             <>
                                 <button onClick={() => { sendTestEmail(user.token); onShowAlert('Sucesso', 'Gatilho de e-mail disparado!'); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
                                     <Mail className="w-4 h-4" /> Testar E-mail
+                                </button>
+                                <button onClick={() => setIsAlertaPrazoOpen(true)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
+                                    <BellRing className="w-4 h-4" /> Alertar Prazo
                                 </button>
                                 <a 
                                     href="https://docs.google.com/spreadsheets/d/1Ewz43i-0necjcF9q9RniuJDIqruTFHPg62kLh46XZis/edit?gid=1841943679#gid=1841943679" 
@@ -775,6 +797,14 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 onSave={handleSaveAcompanhamento}
                 onToggleResponsavel={handleToggleResponsavel}
                 isProcessing={isAcompanhando}
+            />
+
+            <AlertaPrazoModal
+                isOpen={isAlertaPrazoOpen}
+                onClose={() => setIsAlertaPrazoOpen(false)}
+                unidades={availableUnits}
+                onSend={handleEnviarAlertaPrazo}
+                isProcessing={isEnviandoAlertaPrazo}
             />
 
             {itemToView && (

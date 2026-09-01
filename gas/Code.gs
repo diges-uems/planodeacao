@@ -603,6 +603,63 @@ function doPost(e) {
     }
 
     // =====================================================================
+    // ALERTA DE PRAZO DE CADASTRO (exclusivo PROE) — dispara para todos os
+    // cursos de uma unidade (ex: "Dourados"), usando o e-mail cadastrado na
+    // aba CURSOS. Texto e prazo são livres, definidos pela PROE no momento do envio.
+    // =====================================================================
+    if (data.action === "enviar_alerta_prazo") {
+      if (claims.role !== 'reitoria') return respostaNaoAutorizado();
+
+      var unidadeAlvo = normalizarTexto((data.unidade || '').trim());
+      if (!unidadeAlvo) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Informe a unidade.' })).setMimeType(ContentService.MimeType.JSON);
+      }
+      var mensagemCustom = (data.mensagem || '').trim();
+      var prazoTexto = (data.prazo || '').trim();
+
+      var cursosSheetAlerta = ss.getSheetByName('CURSOS');
+      if (!cursosSheetAlerta) {
+        return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Aba CURSOS não encontrada.' })).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var cDataAlerta = cursosSheetAlerta.getDataRange().getValues();
+      var enviados = 0;
+      var semEmail = [];
+
+      for (var ai = 1; ai < cDataAlerta.length; ai++) {
+        var courseNameAlerta = String(cDataAlerta[ai][2] || '');
+        var lastDashAlerta = courseNameAlerta.lastIndexOf(" - ");
+        if (lastDashAlerta === -1) continue;
+
+        var unidadeCursoAlerta = normalizarTexto(courseNameAlerta.substring(lastDashAlerta + 3).trim());
+        if (unidadeCursoAlerta !== unidadeAlvo) continue;
+
+        var emailCursoAlerta = cDataAlerta[ai][3] ? cDataAlerta[ai][3].toString().trim() : '';
+        if (!emailCursoAlerta) {
+          semEmail.push(courseNameAlerta);
+          registrarLog('reitoria', cDataAlerta[ai][1], courseNameAlerta, 'alerta_prazo_erro', 'Curso sem e-mail cadastrado na aba CURSOS — alerta não enviado.');
+          continue;
+        }
+
+        var introducaoAlerta = mensagemCustom || ("O prazo para cadastro de fragilidades e planos de ação do seu curso no sistema está se encerrando" + (prazoTexto ? " em " + prazoTexto : "") + ". Acesse o sistema o quanto antes para concluir o preenchimento.");
+        var detalhesAlerta = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + courseNameAlerta + "</span></div>" +
+                              (prazoTexto ? "<div class='detail-row'><span class='detail-label sans'>Prazo Final</span><span class='detail-value sans'>" + prazoTexto + "</span></div>" : "");
+
+        enviarEmail(
+          "[PROE/UEMS] Prazo de Cadastro se Encerrando - Plano de Ação",
+          introducaoAlerta,
+          detalhesAlerta,
+          false,
+          emailCursoAlerta
+        );
+        enviados++;
+        registrarLog('reitoria', cDataAlerta[ai][1], courseNameAlerta, 'alerta_prazo', 'Alerta de prazo enviado para ' + emailCursoAlerta + (prazoTexto ? ' — prazo: ' + prazoTexto : ''));
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({ success: true, enviados: enviados, semEmail: semEmail })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // =====================================================================
     // LIBERAR EDIÇÃO (exclusivo PROE)
     // =====================================================================
     if (data.action === "liberar_edicao") {
