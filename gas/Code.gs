@@ -927,10 +927,10 @@ function doPost(e) {
 function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverride, ccEmail) {
   var targetEmail = toOverride || "enade@uems.br"; // ALVO RECEBEDOR
 
-  var sheetLink = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+  var portalLink = "https://diges-uems.github.io/planodeacao/";
   var dataOperacao = Utilities.formatDate(new Date(), "GMT-04:00", "dd/MM/yyyy 'às' HH:mm:ss");
 
-  var htmlBody = generateEmailTemplate(assunto, textoPrincipal, detalhesContexto || "", sheetLink, dataOperacao, isTest || false);
+  var htmlBody = generateEmailTemplate(assunto, textoPrincipal, detalhesContexto || "", portalLink, dataOperacao, isTest || false);
 
   try {
     var options = {
@@ -951,7 +951,7 @@ function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverri
  * Gera o corpo do e-mail em HTML injetando parâmetros no template corporativo.
  * Monta o layout com o logo da UEMS, cabeçalhos, tabela de detalhes e botão de acesso.
  */
-function generateEmailTemplate(title, messageBody, detalhesContexto, sheetLink, dataOperacao, isTest) {
+function generateEmailTemplate(title, messageBody, detalhesContexto, portalLink, dataOperacao, isTest) {
   var testBadge = isTest
     ? "<div class='badge sans' style='background-color: #C8A84B; color: #ffffff; border: none; border-radius: 4px; padding: 4px 10px;'>Ambiente de Teste</div>"
     : "";
@@ -1015,7 +1015,7 @@ function generateEmailTemplate(title, messageBody, detalhesContexto, sheetLink, 
 "        <p class='message sans'>" + messageBody + "</p>\n" +
 "        " + contextBox + "\n" +
 "        <div class='button-wrapper'>\n" +
-"          <a href='" + sheetLink + "' class='button sans' target='_blank'>Acessar Planilha Central</a>\n" +
+"          <a href='" + portalLink + "' class='button sans' target='_blank'>Acessar Portal</a>\n" +
 "        </div>\n" +
 "      </div>\n" +
 "      <div class='footer sans'>\n" +
