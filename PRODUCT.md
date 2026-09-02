@@ -46,7 +46,7 @@ Ferramenta institucional específica da UEMS/PROE para governança do plano de a
 
 ## Evidence on Hand
 
-- `HANDOVER.md` e `README.md` na raiz do projeto documentam arquitetura, papéis, fluxos e histórico de mudanças — autoria do próprio usuário (Bruno Lopes, DIND/PROE-UEMS).
+- `HANDOVER.md` e `README.md` na raiz do projeto documentam arquitetura, papéis, fluxos e histórico de mudanças — autoria do próprio usuário (Bruno Lopes, DIGES/PROE-UEMS).
 - Implementação incumbente (`src/components/*.tsx`, `src/index.css`) é a evidência visual atual — tratada como anti-referência para o redesign, não como sistema a preservar.
 
 ## Product Principles

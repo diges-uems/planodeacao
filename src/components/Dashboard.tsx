@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao, enviarAlertaPrazo } from '../lib/api';
+import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao, enviarAlertaPrazo, type CursoDestinatario } from '../lib/api';
 import { generatePdfHtml, sanitizeSearch, formatDateTimeBR, parseResponsaveis, serializeResponsaveis, formatResponsaveisResumo } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
@@ -113,16 +113,16 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const [isAlertaPrazoOpen, setIsAlertaPrazoOpen] = useState(false);
     const [isEnviandoAlertaPrazo, setIsEnviandoAlertaPrazo] = useState(false);
 
-    const handleEnviarAlertaPrazo = async (unidade: string, prazo: string, mensagem: string) => {
+    const handleEnviarAlertaPrazo = async (prazo: string, mensagem: string, destinatarios: CursoDestinatario[], extras: string[]) => {
         setIsEnviandoAlertaPrazo(true);
-        const result = await enviarAlertaPrazo(unidade, prazo, mensagem, user.token);
+        const result = await enviarAlertaPrazo(prazo, mensagem, destinatarios, extras, user.token);
         setIsEnviandoAlertaPrazo(false);
         if (result.success) {
             setIsAlertaPrazoOpen(false);
             const semEmailMsg = result.semEmail && result.semEmail.length > 0
-                ? ` ${result.semEmail.length} curso(s) sem e-mail cadastrado não receberam (veja o log na planilha): ${result.semEmail.join(', ')}.`
+                ? ` ${result.semEmail.length} curso(s) sem e-mail preenchido não receberam (veja o log na planilha): ${result.semEmail.join(', ')}.`
                 : '';
-            onShowAlert("Alerta enviado", `${result.enviados || 0} curso(s) da unidade ${unidade} notificado(s).${semEmailMsg}`);
+            onShowAlert("Alerta enviado", `${result.enviados || 0} destinatário(s) notificado(s).${semEmailMsg}`);
         } else {
             onShowAlert("Erro", result.message || "Falha ao enviar o alerta de prazo.");
         }
@@ -803,6 +803,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 isOpen={isAlertaPrazoOpen}
                 onClose={() => setIsAlertaPrazoOpen(false)}
                 unidades={availableUnits}
+                token={user.token}
                 onSend={handleEnviarAlertaPrazo}
                 isProcessing={isEnviandoAlertaPrazo}
             />
