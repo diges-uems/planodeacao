@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Fragility, User, Responsavel } from '../types';
 import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
-import { parseResponsaveis, serializeResponsaveis } from '../lib/utils';
+import { serializeResponsaveis } from '../lib/utils';
 
 interface ActionFormProps {
     user: User;
@@ -12,14 +12,14 @@ interface ActionFormProps {
     showAlert: (title: string, message: string) => void;
 }
 
-const MAGIC_DADOS: Record<string, Partial<Fragility>> = {
+const MAGIC_DADOS: Record<string, Partial<Fragility> & { responsaveis: string[] }> = {
     "Infraestrutura": {
         fragilidade: "Falta de referências bibliográficas",
         fonte: "Relatório Enade (INEP)",
         conceito: "1",
         acao: "Renovação do acervo bibliográfico",
         prazo: "2027-05-25",
-        responsavel: "Comissão de desenvolvimento de coleções da UEMS, Comitê Enade e CDE",
+        responsaveis: ["Comissão de desenvolvimento de coleções da UEMS", "Comitê Enade", "CDE"],
         recursos: "Reuniões, Livros novos",
         dataReuniao: "25/05/2026",
         minutaReuniao: "Ata nº 05/2026 - Aprovada (Drive)"
@@ -30,7 +30,7 @@ const MAGIC_DADOS: Record<string, Partial<Fragility>> = {
         conceito: "1",
         acao: "Reformulação do PPC e implementação de um sistema por créditos",
         prazo: "2028-06-10",
-        responsavel: "CDE e Colegiado",
+        responsaveis: ["CDE", "Colegiado"],
         recursos: "Reuniões da comissão e pedagógicas",
         dataReuniao: "10/06/2026",
         minutaReuniao: "Link SEI nº 12345/2026"
@@ -41,7 +41,7 @@ const MAGIC_DADOS: Record<string, Partial<Fragility>> = {
         conceito: "-",
         acao: "Implementar programa de nivelamento e monitoria acadêmica (1º e 2º ano) com formalização no PPC",
         prazo: "2026-12-01",
-        responsavel: "CDE e Colegiado",
+        responsaveis: ["CDE", "Colegiado"],
         recursos: "Bolsas de monitoria, moodle e horas docentes",
         dataReuniao: "A agendar",
         minutaReuniao: "Pendente"
@@ -103,12 +103,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
         const interval = setInterval(() => {
             charCount++;
             const parcial = fullText.slice(0, charCount);
-
-            if (field === 'responsavel') {
-                setResponsaveis(parseResponsaveis(parcial));
-            } else {
-                setFormData(prev => ({ ...prev, [field]: parcial }));
-            }
+            setFormData(prev => ({ ...prev, [field]: parcial }));
 
             if (charCount >= fullText.length) {
                 clearInterval(interval);
@@ -119,12 +114,47 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
         typingIntervalsRef.current[field as string] = interval;
     };
 
+    const typeResponsaveisSequencial = (nomes: string[]) => {
+        setResponsaveis([{ nome: '', feito: false }]);
+        let nomeIndex = 0;
+        let charCount = 0;
+        const velocidade = 18;
+
+        const interval = setInterval(() => {
+            charCount++;
+            const nomeAtual = nomes[nomeIndex];
+            const parcial = nomeAtual.slice(0, charCount);
+
+            setResponsaveis(prev => prev.map((r, i) => i === nomeIndex ? { ...r, nome: parcial } : r));
+
+            if (charCount >= nomeAtual.length) {
+                nomeIndex++;
+                charCount = 0;
+                if (nomeIndex < nomes.length) {
+                    setResponsaveis(prev => [...prev, { nome: '', feito: false }]);
+                } else {
+                    clearInterval(interval);
+                    delete typingIntervalsRef.current['responsavel'];
+                }
+            }
+        }, velocidade);
+
+        typingIntervalsRef.current['responsavel'] = interval;
+    };
+
     const handleMagicFocus = (field: keyof Fragility) => {
         if (user.courseName !== 'Teste' || !formData.tipo) return;
         const magicData = MAGIC_DADOS[formData.tipo];
         if (!magicData) return;
 
         if (typedFields.has(field as string)) return;
+
+        if (field === 'responsavel') {
+            if (!magicData.responsaveis || magicData.responsaveis.length === 0) return;
+            setTypedFields(prev => new Set(prev).add(field as string));
+            typeResponsaveisSequencial(magicData.responsaveis);
+            return;
+        }
 
         const textToType = magicData[field] || '';
         if (!textToType) return;
