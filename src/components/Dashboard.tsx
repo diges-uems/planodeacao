@@ -324,9 +324,13 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     };
 
     const renderConceito = (conceito: string) => {
-        const val = parseInt(conceito);
-        if (isNaN(val)) return <span className="text-sm font-normal text-slate-700">N/A</span>;
-        return <span className="text-sm font-normal text-slate-700">NOTA: {conceito}</span>;
+        const texto = (conceito || '').trim();
+        if (!texto) return <span className="text-sm font-normal text-slate-700">N/A</span>;
+        const val = parseInt(texto);
+        if (!isNaN(val) && String(val) === texto) {
+            return <span className="text-sm font-normal text-slate-700">NOTA: {texto}</span>;
+        }
+        return <span className="text-sm font-normal text-slate-700">{texto}</span>;
     };
 
     const handleDeadlineChange = (unit: string, value: string) => {

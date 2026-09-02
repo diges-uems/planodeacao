@@ -346,7 +346,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
                                     onFocus={() => handleMagicFocus('conceito')}
                                     required 
                                     className="input-uems" 
-                                    placeholder="Ex: 1 a 5 ou N/A" 
+                                    placeholder="Ex: 1 a 5, Suficiente, Insuficiente ou N/A" 
                                 />
                             </div>
                         </div>
