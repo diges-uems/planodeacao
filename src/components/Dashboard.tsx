@@ -324,7 +324,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     };
 
     const renderConceito = (conceito: string) => {
-        const texto = (conceito || '').trim();
+        const texto = String(conceito ?? '').trim();
         if (!texto) return <span className="text-sm font-normal text-slate-700">N/A</span>;
         const val = parseInt(texto);
         if (!isNaN(val) && String(val) === texto) {
