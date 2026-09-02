@@ -157,12 +157,34 @@ export async function liberarEdicao(codigoCurso: string, token: string): Promise
     }
 }
 
-export async function enviarAlertaPrazo(unidade: string, prazo: string, mensagem: string, token: string): Promise<{ success: boolean; enviados?: number; semEmail?: string[]; message?: string }> {
+export interface CursoDestinatario {
+    codigoCurso: string;
+    curso: string;
+    email: string;
+}
+
+export async function listarCursosUnidade(unidade: string, token: string): Promise<{ success: boolean; cursos?: CursoDestinatario[]; message?: string }> {
     try {
         if (!API_URL) return { success: false, message: 'URL da API não configurada.' };
         const response = await fetch(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
-            body: JSON.stringify({ action: 'enviar_alerta_prazo', unidade, prazo, mensagem, token }),
+            body: JSON.stringify({ action: 'listar_cursos_unidade', unidade, token }),
+            headers: { 'Content-Type': 'text/plain' },
+        });
+        if (!response.ok) return { success: false, message: 'Falha na comunicação com o servidor.' };
+        return await response.json();
+    } catch (error) {
+        console.error("Listar cursos da unidade erro:", error);
+        return { success: false, message: 'Erro de conexão.' };
+    }
+}
+
+export async function enviarAlertaPrazo(prazo: string, mensagem: string, destinatarios: CursoDestinatario[], extras: string[], token: string): Promise<{ success: boolean; enviados?: number; semEmail?: string[]; message?: string }> {
+    try {
+        if (!API_URL) return { success: false, message: 'URL da API não configurada.' };
+        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'enviar_alerta_prazo', prazo, mensagem, destinatarios, extras, token }),
             headers: { 'Content-Type': 'text/plain' },
         });
         if (!response.ok) return { success: false, message: 'Falha na comunicação com o servidor.' };

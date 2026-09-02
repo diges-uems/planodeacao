@@ -41,7 +41,7 @@ A arquitetura baseia-se num modelo *serverless* com uso nativo das ferramentas d
 - **Notificações de Cursos**: O envio de e-mails diretos para as coordenações só ocorre se a flag global `NOTIFICACOES_POR_CURSO_ATIVAS` no `code.gs` for configurada para `true`. O sistema depende da aba `CURSOS_EMAIL` ou da coluna Email na aba `CURSOS` para achar os contatos.
 
 ## 7. Contato e Autoria
-Desenvolvido por **Bruno Lopes** (DIND/PROE - UEMS) — 2026.
+Desenvolvido por **Bruno Lopes** (DIGES/PROE - UEMS) — 2026.
 
 *Nota sobre Manutenção*: Este sistema foi construído com o apoio de ferramentas de Inteligência Artificial (Google AI Studio Build / Claude / Gemini). Caso um futuro mantenedor da UEMS precise alterar fluxos ou estilos e não tenha proficiência total nas linguagens base, é recomendado que utilize ferramentas semelhantes de IA com este código como contexto, descrevendo o ajuste ou correção desejados em linguagem natural. A própria IA guiará as modificações nas duas pontas (React e Sheets).
 
