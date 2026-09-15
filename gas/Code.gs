@@ -368,14 +368,29 @@ function doPost(e) {
   // CORS Headers
   var origin = e && e.parameter && e.parameter.origin ? e.parameter.origin : '*';
 
-  var lock = LockService.getScriptLock();
-  lock.waitLock(15000);
+  if (!e || !e.postData || !e.postData.contents) return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'No payload' })).setMimeType(ContentService.MimeType.JSON);
+
+  var data;
+  try {
+    data = JSON.parse(e.postData.contents);
+  } catch (parseErr) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Payload inválido' })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // "login" e "check_liberacao" só leem a planilha (nunca escrevem), então não competem
+  // pelo lock de escrita abaixo — que fica ocupado segundos durante envio de lote/e-mails
+  // e, sem essa exceção, travava o login de todo mundo atrás dessas operações lentas.
+  var ACOES_SOMENTE_LEITURA = { 'login': true, 'check_liberacao': true };
+  var precisaLock = Array.isArray(data) || !ACOES_SOMENTE_LEITURA[data.action];
+
+  var lock = null;
+  if (precisaLock) {
+    lock = LockService.getScriptLock();
+    lock.waitLock(15000);
+  }
 
   try {
-    if (!e || !e.postData || !e.postData.contents) return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'No payload' })).setMimeType(ContentService.MimeType.JSON);
-
     var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var data = JSON.parse(e.postData.contents);
 
     // Fuso horário de Mato Grosso do Sul
     var dataHoraCuiaba = Utilities.formatDate(new Date(), "GMT-04:00", "dd/MM/yyyy HH:mm:ss");
@@ -957,7 +972,7 @@ function doPost(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, message: err.message })).setMimeType(ContentService.MimeType.JSON);
   } finally {
-    lock.releaseLock();
+    if (lock) lock.releaseLock();
   }
 }
 
