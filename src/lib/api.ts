@@ -196,38 +196,49 @@ export async function enviarAlertaPrazo(prazo: string, mensagem: string, destina
 }
 
 export async function login(password: string): Promise<any> {
-    try {
-        if (!API_URL) {
-            return { success: false, message: "URL da API não configurada (.env.local)" };
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
-        
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'login', password }),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (!response.ok) {
-            return { success: false, message: "Erro de rede ao conectar com Apps Script" };
-        }
-
-        const text = await response.text();
-        try {
-            return JSON.parse(text);
-        } catch (err) {
-            console.error("Login parse error:", err, "Response text:", text.substring(0, 100));
-            return { success: false, message: "Erro no Apps Script. Por favor, atualize o code.gs e crie uma *Nova Implantação* (New deployment)." };
-        }
-    } catch(e) {
-        console.error("Login error:", e);
-        return { success: false, message: "Erro de conexão (CORS). Por favor, atualize o code.gs e crie uma Nova Implantação." };
+    if (!API_URL) {
+        return { success: false, message: "URL da API não configurada (.env.local)" };
     }
+
+    // O Apps Script responde por um redirect (script.google.com -> googleusercontent.com) e,
+    // sob carga, às vezes devolve um status não-2xx nesse segundo salto mesmo com o script
+    // rodando normal. Como o login é idempotente (só lê a planilha), uma segunda tentativa
+    // resolve — sem isso o usuário levava "Erro de rede" e precisava clicar de novo na mão.
+    let ultimaFalha = { success: false, message: "Erro de rede ao conectar com Apps Script" };
+
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
+
+            const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ action: 'login', password }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                ultimaFalha = { success: false, message: "Erro de rede ao conectar com Apps Script" };
+                continue;
+            }
+
+            const text = await response.text();
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                console.error("Login parse error:", err, "Response text:", text.substring(0, 100));
+                return { success: false, message: "Erro no Apps Script. Por favor, atualize o code.gs e crie uma *Nova Implantação* (New deployment)." };
+            }
+        } catch(e) {
+            console.error("Login error:", e);
+            ultimaFalha = { success: false, message: "Erro de conexão (CORS). Por favor, atualize o code.gs e crie uma Nova Implantação." };
+        }
+    }
+
+    return ultimaFalha;
 }
 
 export async function addAcompanhamento(
