@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { fetchDashboardData, deleteFragility, updateFragility, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao, enviarAlertaPrazo, type CursoDestinatario } from '../lib/api';
+import { fetchDashboardData, deleteFragility, updateFragility, updateResponsavel, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao, enviarAlertaPrazo, type CursoDestinatario } from '../lib/api';
 import { generatePdfHtml, sanitizeSearch, formatDateTimeBR, parseResponsaveis, serializeResponsaveis, formatResponsaveisResumo } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
@@ -259,19 +259,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         if (!lista[index]) return;
         lista[index] = { ...lista[index], feito };
         const responsavelSerializado = serializeResponsaveis(lista);
-        const newData: Partial<Fragility> = {
-            tipo: itemToAcompanhar.tipo,
-            fragilidade: itemToAcompanhar.fragilidade,
-            fonte: itemToAcompanhar.fonte,
-            conceito: itemToAcompanhar.conceito,
-            acao: itemToAcompanhar.acao,
-            prazo: itemToAcompanhar.prazo,
-            responsavel: responsavelSerializado,
-            recursos: itemToAcompanhar.recursos,
-            dataReuniao: itemToAcompanhar.dataReuniao,
-            minutaReuniao: itemToAcompanhar.minutaReuniao
-        };
-        const success = await updateFragility(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, itemToAcompanhar.codigoCurso, newData, user.token, itemToAcompanhar.id);
+        const success = await updateResponsavel(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, itemToAcompanhar.codigoCurso, responsavelSerializado, user.token, itemToAcompanhar.id);
         if (success) {
             setItemToAcompanhar(prev => prev ? { ...prev, responsavel: responsavelSerializado } : prev);
             setData(prev => prev.map(d =>
