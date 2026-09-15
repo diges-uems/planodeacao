@@ -837,7 +837,7 @@ function doPost(e) {
     // =====================================================================
     // 2. EDIÇÃO / EXCLUSÃO / ACOMPANHAMENTOS
     // =====================================================================
-    if (data.action === "update" || data.action === "delete" || data.action === "add_acompanhamento") {
+    if (data.action === "update" || data.action === "delete" || data.action === "add_acompanhamento" || data.action === "update_responsavel") {
       var sheet = ss.getSheetByName(data.ano.toString());
       if (!sheet) return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Aba não encontrada.' })).setMimeType(ContentService.MimeType.JSON);
 
@@ -963,6 +963,14 @@ function doPost(e) {
           }
 
           registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'add_acompanhamento', 'Registro #' + (data.id || 'antigo') + ' — status: ' + (data.acompanhamento && data.acompanhamento.status));
+          return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
+        } else if (data.action === "update_responsavel") {
+          // Marcar se um responsável cumpriu o que foi acordado é acompanhamento, não edição
+          // do plano — por isso não passa pelo gate "Liberado" nem revoga a liberação, igual
+          // add_acompanhamento. Escreve só a coluna Responsável (12), nunca o resto da linha.
+          sheet.getRange(rowIndex, 12).setValue(data.responsavel || '');
+
+          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'update_responsavel', 'Registro #' + (data.id || 'antigo') + ' — responsáveis: ' + (data.responsavel || ''));
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
         }
       }
