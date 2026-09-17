@@ -1,4 +1,4 @@
-export const API_URL = "https://script.google.com/macros/s/AKfycbzVUpywmkEqBRAjINdhDrvNmrQSFlqP4zFlxir8paq6z0NXsXYaX0uFrN5RrLHmUltE0A/exec";
+export const API_URL = "https://script.google.com/macros/s/AKfycby8ibqnrYdOso-i6wd5jlA6mXluW0EdUPY4oRCfoYYTwG6VIbtCJF79ocI-Jqq7LtS45g/exec";
 
 export const DIMENSIONS = [
     "Organização Didático-Pedagógica",
