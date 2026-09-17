@@ -283,21 +283,74 @@ function invalidarCacheCursos() {
  */
 function registrarLog(role, courseId, courseName, acao, detalhe) {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName('Log_Acessos');
-    if (!sheet) {
-      sheet = ss.insertSheet('Log_Acessos');
-      sheet.appendRow(['Data/Hora', 'Papel', 'Código Curso', 'Curso', 'Ação', 'Detalhe']);
-      sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f1f5f9');
-      sheet.setFrozenRows(1);
-      sheet.setColumnWidth(6, 350);
-    }
     var timestamp = Utilities.formatDate(new Date(), "GMT-04:00", "dd/MM/yyyy HH:mm:ss");
-    sheet.appendRow([timestamp, role || '', courseId || '', courseName || '', acao || '', detalhe || '']);
+    var linha = [timestamp, role || '', courseId || '', courseName || '', acao || '', detalhe || ''];
+
+    // Escrever direto na planilha custa ~1s (toda escrita no Sheets paga um round-trip,
+    // independente do tamanho) — num login, isso era metade do tempo total de resposta.
+    // Por isso a linha vai primeiro para um buffer em ScriptProperties, que é durável
+    // (sobrevive a reinício do script, ao contrário do CacheService) e bem mais barato.
+    // O buffer é despejado na aba Log_Acessos por flushLogBuffer(), chamado no fim de
+    // toda ação que já escreve na planilha e, como rede de segurança, quando o buffer
+    // passa de LOG_BUFFER_MAX linhas. Nenhum registro de auditoria é descartado.
+    var props = PropertiesService.getScriptProperties();
+    var buffer = [];
+    var bruto = props.getProperty(LOG_BUFFER_KEY);
+    if (bruto) {
+      try { buffer = JSON.parse(bruto) || []; } catch (e) { buffer = []; }
+    }
+    buffer.push(linha);
+
+    if (buffer.length >= LOG_BUFFER_MAX) {
+      gravarLinhasDeLog(buffer);
+      props.deleteProperty(LOG_BUFFER_KEY);
+    } else {
+      props.setProperty(LOG_BUFFER_KEY, JSON.stringify(buffer));
+    }
   } catch (err) {
     // Log é auxiliar; nunca deve quebrar a ação principal.
   }
 }
+
+var LOG_BUFFER_KEY = 'LOG_BUFFER';
+var LOG_BUFFER_MAX = 15;
+
+/**
+ * Escreve de uma vez as linhas acumuladas na aba Log_Acessos (uma única chamada
+ * setValues, em vez de um appendRow por linha).
+ */
+function gravarLinhasDeLog(linhas) {
+  if (!linhas || linhas.length === 0) return;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName('Log_Acessos');
+  if (!sheet) {
+    sheet = ss.insertSheet('Log_Acessos');
+    sheet.appendRow(['Data/Hora', 'Papel', 'Código Curso', 'Curso', 'Ação', 'Detalhe']);
+    sheet.getRange(1, 1, 1, 6).setFontWeight('bold').setBackground('#f1f5f9');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(6, 350);
+  }
+  sheet.getRange(sheet.getLastRow() + 1, 1, linhas.length, 6).setValues(linhas);
+}
+
+/**
+ * Despeja o buffer de log na planilha. Chamado no fim das ações que já escrevem
+ * na planilha (onde o custo do write já foi pago de qualquer forma).
+ */
+function flushLogBuffer() {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    var bruto = props.getProperty(LOG_BUFFER_KEY);
+    if (!bruto) return;
+    var buffer = JSON.parse(bruto) || [];
+    if (buffer.length === 0) return;
+    gravarLinhasDeLog(buffer);
+    props.deleteProperty(LOG_BUFFER_KEY);
+  } catch (err) {
+    // Nunca derruba a ação principal.
+  }
+}
+
 
 /**
  * Insere novas linhas em uma tabela específica de curso dentro de uma aba de ano ou auditoria.
@@ -467,8 +520,14 @@ function doPost(e) {
     // LOGIN (única ação que não exige token — é ela quem gera o token)
     // =====================================================================
     if (data.action === 'login') {
+      // Instrumentação sob demanda: {"action":"login","diag":true} devolve o tempo de
+      // cada etapa em _diag, para medir onde o login gasta o tempo sem adivinhação.
+      var diag = data.diag === true;
+      var t0 = Date.now();
       var masterConfig = lerSenhaMestreComCache(ss);
+      var tConfig = Date.now();
       var cData = lerCursosComCache(ss);
+      var tCursos = Date.now();
 
       if (data.password === masterConfig) {
         var courses = {};
@@ -501,7 +560,16 @@ function doPost(e) {
       }
 
       registrarLog('', '', '', 'login_falha', 'Tentativa de login com senha inválida.');
-      return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Senha inválida' })).setMimeType(ContentService.MimeType.JSON);
+      var respostaFalha = { success: false, message: 'Senha inválida' };
+      if (diag) {
+        respostaFalha._diag = {
+          config_ms: tConfig - t0,
+          cursos_ms: tCursos - tConfig,
+          log_ms: Date.now() - tCursos,
+          total_ms: Date.now() - t0
+        };
+      }
+      return ContentService.createTextOutput(JSON.stringify(respostaFalha)).setMimeType(ContentService.MimeType.JSON);
     }
 
     // A partir daqui, toda ação exige um token válido. Quando o payload é um array puro
@@ -1033,7 +1101,13 @@ function doPost(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ success: false, message: err.message })).setMimeType(ContentService.MimeType.JSON);
   } finally {
-    if (lock) lock.releaseLock();
+    if (lock) {
+      // Ações com lock são exatamente as que escrevem na planilha: o custo do write
+      // já foi pago, então é aqui que o buffer de log é despejado — ainda dentro do
+      // lock, para dois writes simultâneos não duplicarem as mesmas linhas.
+      flushLogBuffer();
+      lock.releaseLock();
+    }
   }
 }
 
