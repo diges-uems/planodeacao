@@ -519,6 +519,10 @@ function doPost(e) {
     // =====================================================================
     // LOGIN (única ação que não exige token — é ela quem gera o token)
     // =====================================================================
+    // O login não grava em Log_Acessos: era a única escrita no caminho e a aba de
+    // auditoria existe para rastrear alteração de dados, não sessão. Continuam
+    // registrados update, delete, add_acompanhamento, update_responsavel,
+    // liberar_edicao e register_course_email.
     if (data.action === 'login') {
       // Instrumentação sob demanda: {"action":"login","diag":true} devolve o tempo de
       // cada etapa em _diag, para medir onde o login gasta o tempo sem adivinhação.
@@ -536,7 +540,6 @@ function doPost(e) {
             courses[cData[r][0]] = cData[r][1] + '||' + cData[r][2];
           }
         }
-        registrarLog('reitoria', '', 'PROE', 'login', 'Login da PROE bem-sucedido.');
         return ContentService.createTextOutput(JSON.stringify({
           success: true, role: 'reitoria', courses: courses,
           token: gerarToken('reitoria', null, null)
@@ -546,7 +549,6 @@ function doPost(e) {
       var inputHash = Utilities.base64Encode(data.password);
       for (var i = 1; i < cData.length; i++) {
         if (cData[i][0] === inputHash) {
-          registrarLog('coordenador', cData[i][1], cData[i][2], 'login', 'Login do coordenador bem-sucedido.');
           return ContentService.createTextOutput(JSON.stringify({
               success: true,
               role: 'coordenador',
@@ -559,7 +561,6 @@ function doPost(e) {
         }
       }
 
-      registrarLog('', '', '', 'login_falha', 'Tentativa de login com senha inválida.');
       var respostaFalha = { success: false, message: 'Senha inválida' };
       if (diag) {
         respostaFalha._diag = {
