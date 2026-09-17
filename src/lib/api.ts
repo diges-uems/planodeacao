@@ -3,39 +3,93 @@ import type { Fragility, Acompanhamento } from '../types';
 
 // O Apps Script responde em duas pernas: o POST/GET para script.google.com devolve um 302
 // para script.googleusercontent.com/macros/echo, e é nessa segunda perna que a
-// infraestrutura do Google falha de forma intermitente — medido em produção, ela devolve
-// 404 depois de 15 a 30 segundos em boa parte das tentativas, mesmo com o script tendo
-// executado normalmente. Esperar 90s por uma tentativa dessas é o que fazia o login
-// parecer travado e terminar em "Erro de rede".
+// infraestrutura do Google falha de forma intermitente. Medido em produção com o script
+// instrumentado: o nosso código executa em ~55ms, mas a requisição inteira leva de 2,5s a
+// 40s, e cerca de metade das tentativas morre com 404 depois de 12 a 30 segundos. A
+// latência é toda do dispatch do Apps Script, não do backend — não há o que otimizar lá.
 //
-// Por isso: timeout curto por tentativa (aborta a perna morta em vez de esperar) e nova
-// tentativa logo em seguida. Só pode ser usado em chamadas idempotentes (leituras) — um
-// 404 nessa perna NÃO garante que o script não rodou, então repetir uma escrita poderia
-// duplicar registros.
-const TIMEOUT_POR_TENTATIVA_MS = 20000;
+// Como esperar uma tentativa travada é o que o usuário sente como "login lento", as
+// leituras usam requisições sobrepostas (hedged requests): dispara-se uma tentativa e, se
+// ela não responder em HEDGE_MS, dispara-se outra em paralelo sem cancelar a primeira,
+// aproveitando a que responder antes. Com ~50% de falha por tentativa, isso derruba o
+// tempo típico para o de uma chamada boa (~1s).
+//
+// Só pode ser usado em chamadas idempotentes (leituras): um 404 nessa perna NÃO garante
+// que o script deixou de rodar, então sobrepor ou repetir uma escrita duplicaria registros.
+const HEDGE_MS = 3000;
+const TIMEOUT_TOTAL_MS = 30000;
 const TENTATIVAS_LEITURA = 3;
 
 async function fetchComRetry(url: string, init?: RequestInit): Promise<Response> {
-    let ultimoErro: unknown = new Error('Falha ao conectar com Apps Script');
+    const controllers: AbortController[] = [];
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
-    for (let tentativa = 0; tentativa < TENTATIVAS_LEITURA; tentativa++) {
+    const limpar = () => {
+        timers.forEach(clearTimeout);
+        controllers.forEach(c => {
+            try { c.abort(); } catch { /* já finalizada */ }
+        });
+    };
+
+    // Cada tentativa usa uma URL própria: o parâmetro t=... evita que as requisições
+    // sobrepostas caiam em cache intermediário e devolvam a mesma resposta morta.
+    const tentativa = async (): Promise<Response> => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_POR_TENTATIVA_MS);
-        try {
-            const response = await fetch(url, { ...init, signal: controller.signal });
-            if (response.ok) return response;
-            ultimoErro = new Error(`HTTP ${response.status}`);
-        } catch (e) {
-            ultimoErro = e;
-        } finally {
-            clearTimeout(timeoutId);
-        }
-        if (tentativa < TENTATIVAS_LEITURA - 1) {
-            await new Promise(r => setTimeout(r, 400 * (tentativa + 1)));
-        }
-    }
+        controllers.push(controller);
+        const separador = url.includes('?') ? '&' : '?';
+        const response = await fetch(`${url}${separador}h=${Date.now()}${Math.random()}`, {
+            ...init,
+            signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response;
+    };
 
-    throw ultimoErro;
+    return new Promise<Response>((resolve, reject) => {
+        let pendentes = 0;
+        let disparadas = 0;
+        let resolvida = false;
+        let ultimoErro: unknown = new Error('Falha ao conectar com Apps Script');
+
+        const concluir = (response: Response) => {
+            if (resolvida) return;
+            resolvida = true;
+            limpar();
+            resolve(response);
+        };
+
+        const falhar = () => {
+            if (resolvida) return;
+            resolvida = true;
+            limpar();
+            reject(ultimoErro);
+        };
+
+        const disparar = () => {
+            if (resolvida || disparadas >= TENTATIVAS_LEITURA) return;
+            disparadas++;
+            pendentes++;
+
+            tentativa().then(concluir).catch(e => {
+                ultimoErro = e;
+                pendentes--;
+                // Se a tentativa morreu antes do prazo do hedge, não espera: dispara já.
+                if (pendentes === 0 && disparadas < TENTATIVAS_LEITURA) disparar();
+                else if (pendentes === 0 && disparadas >= TENTATIVAS_LEITURA) falhar();
+            });
+
+            if (disparadas < TENTATIVAS_LEITURA) {
+                timers.push(setTimeout(disparar, HEDGE_MS));
+            }
+        };
+
+        timers.push(setTimeout(() => {
+            ultimoErro = new Error('Tempo esgotado ao conectar com Apps Script');
+            falhar();
+        }, TIMEOUT_TOTAL_MS));
+
+        disparar();
+    });
 }
 
 export async function fetchDashboardData(token: string): Promise<Fragility[] | null> {
