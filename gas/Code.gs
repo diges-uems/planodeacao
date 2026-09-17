@@ -209,6 +209,74 @@ function doGet(e) {
 }
 
 /**
+ * =========================================================================
+ * CACHE DAS ABAS DE LOGIN (CONFIG + CURSOS)
+ * =========================================================================
+ * Medido em produção: uma chamada que não toca na planilha executa em ~0,2s,
+ * enquanto o login levava de 2 a 4s. A diferença é abrir a planilha e ler as abas
+ * CONFIG e CURSOS inteiras a cada tentativa de login.
+ *
+ * Como essas duas abas mudam raramente (cadastro de curso, liberação de edição,
+ * registro de e-mail), o conteúdo fica no CacheService por 6h e é invalidado
+ * explicitamente por invalidarCacheCursos() em toda escrita que as altera.
+ * O polling de check_liberacao NÃO usa este cache — ele precisa ler o estado atual.
+ */
+var CACHE_CURSOS_KEY = 'CURSOS_V1';
+var CACHE_CONFIG_KEY = 'CONFIG_MASTER_V1';
+var CACHE_TTL_S = 21600; // 6 horas
+
+function lerCursosComCache(ss) {
+  var cache = CacheService.getScriptCache();
+  var bruto = cache.get(CACHE_CURSOS_KEY);
+  if (bruto) {
+    try { return JSON.parse(bruto); } catch (e) { /* cache corrompido: relê da planilha */ }
+  }
+
+  var cursosSheet = ss.getSheetByName('CURSOS');
+  if (!cursosSheet) {
+    cursosSheet = ss.insertSheet('CURSOS');
+    cursosSheet.appendRow(['hash', 'courseId', 'courseName', 'Email', 'Liberado']);
+    cursosSheet.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#f1f5f9");
+    cursosSheet.appendRow(['dGVzdGU=', '00000001', 'Teste', 'enade@uems.br', 'SIM']);
+  }
+
+  var cData = cursosSheet.getDataRange().getValues();
+  // Datas/objetos não sobrevivem ao JSON do cache; estas colunas são todas texto.
+  var normalizado = cData.map(function(linha) {
+    return linha.map(function(celula) { return celula === null || celula === undefined ? '' : String(celula); });
+  });
+  try { cache.put(CACHE_CURSOS_KEY, JSON.stringify(normalizado), CACHE_TTL_S); } catch (e) { /* payload grande demais: segue sem cache */ }
+  return normalizado;
+}
+
+function lerSenhaMestreComCache(ss) {
+  var cache = CacheService.getScriptCache();
+  var valor = cache.get(CACHE_CONFIG_KEY);
+  if (valor !== null) return valor;
+
+  var configSheet = ss.getSheetByName('CONFIG');
+  if (!configSheet) {
+    configSheet = ss.insertSheet('CONFIG');
+    configSheet.appendRow(['uems2026', 'salt']);
+  }
+  var senha = String(configSheet.getRange(1, 1).getValue());
+  try { cache.put(CACHE_CONFIG_KEY, senha, CACHE_TTL_S); } catch (e) { /* segue sem cache */ }
+  return senha;
+}
+
+/**
+ * Chamada por toda escrita que altera CURSOS/CONFIG, para que o próximo login
+ * leia o estado novo em vez do cache velho.
+ */
+function invalidarCacheCursos() {
+  try {
+    CacheService.getScriptCache().removeAll([CACHE_CURSOS_KEY, CACHE_CONFIG_KEY]);
+  } catch (e) {
+    // Cache é otimização; falha aqui nunca deve derrubar a escrita.
+  }
+}
+
+/**
  * Registra uma linha na aba "Log_Acessos" (login, edição, exclusão, liberação, etc).
  * Cria a aba com cabeçalho na primeira chamada. Falhas de log nunca derrubam a ação
  * principal (login, salvar, excluir...) — por isso o try/catch engolindo o erro.
@@ -399,22 +467,14 @@ function doPost(e) {
     // LOGIN (única ação que não exige token — é ela quem gera o token)
     // =====================================================================
     if (data.action === 'login') {
-      var configSheet = ss.getSheetByName('CONFIG');
-      if (!configSheet) {
-        configSheet = ss.insertSheet('CONFIG');
-        configSheet.appendRow(['uems2026', 'salt']);
-      }
-      var masterConfig = configSheet.getRange(1, 1).getValue();
+      var masterConfig = lerSenhaMestreComCache(ss);
+      var cData = lerCursosComCache(ss);
 
       if (data.password === masterConfig) {
-        var cursosSheet = ss.getSheetByName('CURSOS');
         var courses = {};
-        if (cursosSheet) {
-          var cData = cursosSheet.getDataRange().getValues();
-          for (var r = 1; r < cData.length; r++) { // skip header
-             if (cData[r][1]) {
-               courses[cData[r][0]] = cData[r][1] + '||' + cData[r][2];
-             }
+        for (var r = 1; r < cData.length; r++) { // skip header
+          if (cData[r][1]) {
+            courses[cData[r][0]] = cData[r][1] + '||' + cData[r][2];
           }
         }
         registrarLog('reitoria', '', 'PROE', 'login', 'Login da PROE bem-sucedido.');
@@ -424,15 +484,6 @@ function doPost(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
 
-      var cursosSheet = ss.getSheetByName('CURSOS');
-      if (!cursosSheet) {
-        cursosSheet = ss.insertSheet('CURSOS');
-        cursosSheet.appendRow(['hash', 'courseId', 'courseName', 'Email', 'Liberado']);
-        cursosSheet.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#f1f5f9");
-        cursosSheet.appendRow(['dGVzdGU=', '00000001', 'Teste', 'enade@uems.br', 'SIM']);
-      }
-
-      var cData = cursosSheet.getDataRange().getValues();
       var inputHash = Utilities.base64Encode(data.password);
       for (var i = 1; i < cData.length; i++) {
         if (cData[i][0] === inputHash) {
@@ -520,6 +571,7 @@ function doPost(e) {
         ss.getSheetByName('CURSOS_EMAIL').getRange(match.linha, 4).setValue(email);
       }
 
+      invalidarCacheCursos();
       registrarLog(claims.role, courseId, courseNameAtual, 'register_course_email', 'E-mail cadastrado: ' + email);
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -743,6 +795,7 @@ function doPost(e) {
       }
 
       cursosSheet.getRange(linhaEncontrada, 5).setValue("SIM");
+      invalidarCacheCursos();
       registrarLog('reitoria', data.codigoCurso, cData[linhaEncontrada - 1][2], 'liberar_edicao', 'PROE liberou edição/exclusão para o curso.');
       return ContentService.createTextOutput(JSON.stringify({ success: true, message: 'Edição liberada.' })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -1207,6 +1260,8 @@ function configurarEmailsCursos() {
 
   sheet.getRange(1, 1, rows.length, 4).setValues(rows);
   sheet.getRange(1, 1, 1, 4).setFontWeight("bold").setBackground("#f1f5f9");
+
+  invalidarCacheCursos();
 }
 
 function normalizarTexto(t) {
@@ -1399,6 +1454,8 @@ function sincronizarCursosAtivos() {
     false,
     "enade@uems.br"
   );
+
+  invalidarCacheCursos();
 }
 
 /**
@@ -1449,6 +1506,7 @@ function revogarLiberacao(courseName) {
   for (var i = 1; i < cData.length; i++) {
     if (cData[i][2] === courseName) {
       cursosSheet.getRange(i + 1, 5).setValue("NÃO");
+      invalidarCacheCursos();
       break;
     }
   }
@@ -1589,6 +1647,8 @@ function garantirCabecalhoCursos() {
       sheet.getRange(r + 1, 5).setValue("NÃO");
     }
   }
+
+  invalidarCacheCursos();
 }
 
 function formatarAcompanhamentosParaTexto(acompanhamentos) {
