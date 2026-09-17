@@ -1,16 +1,46 @@
 import { API_URL } from './constants';
 import type { Fragility, Acompanhamento } from '../types';
 
+// O Apps Script responde em duas pernas: o POST/GET para script.google.com devolve um 302
+// para script.googleusercontent.com/macros/echo, e é nessa segunda perna que a
+// infraestrutura do Google falha de forma intermitente — medido em produção, ela devolve
+// 404 depois de 15 a 30 segundos em boa parte das tentativas, mesmo com o script tendo
+// executado normalmente. Esperar 90s por uma tentativa dessas é o que fazia o login
+// parecer travado e terminar em "Erro de rede".
+//
+// Por isso: timeout curto por tentativa (aborta a perna morta em vez de esperar) e nova
+// tentativa logo em seguida. Só pode ser usado em chamadas idempotentes (leituras) — um
+// 404 nessa perna NÃO garante que o script não rodou, então repetir uma escrita poderia
+// duplicar registros.
+const TIMEOUT_POR_TENTATIVA_MS = 20000;
+const TENTATIVAS_LEITURA = 3;
+
+async function fetchComRetry(url: string, init?: RequestInit): Promise<Response> {
+    let ultimoErro: unknown = new Error('Falha ao conectar com Apps Script');
+
+    for (let tentativa = 0; tentativa < TENTATIVAS_LEITURA; tentativa++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_POR_TENTATIVA_MS);
+        try {
+            const response = await fetch(url, { ...init, signal: controller.signal });
+            if (response.ok) return response;
+            ultimoErro = new Error(`HTTP ${response.status}`);
+        } catch (e) {
+            ultimoErro = e;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+        if (tentativa < TENTATIVAS_LEITURA - 1) {
+            await new Promise(r => setTimeout(r, 400 * (tentativa + 1)));
+        }
+    }
+
+    throw ultimoErro;
+}
+
 export async function fetchDashboardData(token: string): Promise<Fragility[] | null> {
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
-
-        const response = await fetch(`${API_URL}?t=${Date.now()}&token=${encodeURIComponent(token)}`, {
-            signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        
+        const response = await fetchComRetry(`${API_URL}?t=${Date.now()}&token=${encodeURIComponent(token)}`);
         const data = await response.json();
         return Array.isArray(data) ? data.reverse().map((item: any, i: number) => ({ ...item, _id: `${item.ano}|${item.curso}|${item.fragilidade}|${i}` })) : null;
     } catch (e) {
@@ -166,12 +196,11 @@ export async function sendTestEmail(token: string): Promise<boolean> {
 export async function checkLiberacao(token: string): Promise<boolean | null> {
     try {
         if (!API_URL) return null;
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+        const response = await fetchComRetry(`${API_URL}?t=${Date.now()}`, {
             method: 'POST',
             body: JSON.stringify({ action: 'check_liberacao', token }),
             headers: { 'Content-Type': 'text/plain' },
         });
-        if (!response.ok) return null;
         const data = await response.json();
         return data.success === true ? Boolean(data.podeEditar) : null;
     } catch (error) {
@@ -240,45 +269,25 @@ export async function login(password: string): Promise<any> {
         return { success: false, message: "URL da API não configurada (.env.local)" };
     }
 
-    // O Apps Script responde por um redirect (script.google.com -> googleusercontent.com) e,
-    // sob carga, às vezes devolve um status não-2xx nesse segundo salto mesmo com o script
-    // rodando normal. Como o login é idempotente (só lê a planilha), uma segunda tentativa
-    // resolve — sem isso o usuário levava "Erro de rede" e precisava clicar de novo na mão.
-    let ultimaFalha = { success: false, message: "Erro de rede ao conectar com Apps Script" };
+    // Login só lê a planilha, então pode ser repetido com segurança (ver fetchComRetry).
+    try {
+        const response = await fetchComRetry(`${API_URL}?t=${Date.now()}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'login', password })
+        });
 
-    for (let tentativa = 0; tentativa < 2; tentativa++) {
+        const text = await response.text();
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 90000);
-
-            const response = await fetch(`${API_URL}?t=${Date.now()}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ action: 'login', password }),
-                signal: controller.signal
-            });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                ultimaFalha = { success: false, message: "Erro de rede ao conectar com Apps Script" };
-                continue;
-            }
-
-            const text = await response.text();
-            try {
-                return JSON.parse(text);
-            } catch (err) {
-                console.error("Login parse error:", err, "Response text:", text.substring(0, 100));
-                return { success: false, message: "Erro no Apps Script. Por favor, atualize o code.gs e crie uma *Nova Implantação* (New deployment)." };
-            }
-        } catch(e) {
-            console.error("Login error:", e);
-            ultimaFalha = { success: false, message: "Erro de conexão (CORS). Por favor, atualize o code.gs e crie uma Nova Implantação." };
+            return JSON.parse(text);
+        } catch (err) {
+            console.error("Login parse error:", err, "Response text:", text.substring(0, 100));
+            return { success: false, message: "Erro no Apps Script. Por favor, atualize o code.gs e crie uma *Nova Implantação* (New deployment)." };
         }
+    } catch (e) {
+        console.error("Login error:", e);
+        return { success: false, message: "O Google não respondeu. Tente novamente em alguns segundos." };
     }
-
-    return ultimaFalha;
 }
 
 export async function addAcompanhamento(
@@ -314,8 +323,7 @@ export async function addAcompanhamento(
 export async function getDeadlines(token: string): Promise<Record<string, string>> {
     try {
         if (!API_URL) return {};
-        const response = await fetch(`${API_URL}?action=get_deadlines&t=${Date.now()}&token=${encodeURIComponent(token)}`);
-        if (!response.ok) return {};
+        const response = await fetchComRetry(`${API_URL}?action=get_deadlines&t=${Date.now()}&token=${encodeURIComponent(token)}`);
         const data = await response.json();
         if (data && data.success) {
             return data.deadlines || {};
