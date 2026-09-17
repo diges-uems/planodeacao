@@ -24,16 +24,19 @@ async function fetchComRetry(url: string, init?: RequestInit): Promise<Response>
     const controllers: AbortController[] = [];
     const timers: ReturnType<typeof setTimeout>[] = [];
 
-    const limpar = () => {
+    // Nunca aborta o controller da tentativa vencedora: o corpo da resposta só é lido
+    // depois que fetchComRetry retorna, e abortar invalidaria essa leitura.
+    const limpar = (vencedor?: AbortController) => {
         timers.forEach(clearTimeout);
         controllers.forEach(c => {
+            if (c === vencedor) return;
             try { c.abort(); } catch { /* já finalizada */ }
         });
     };
 
     // Cada tentativa usa uma URL própria: o parâmetro t=... evita que as requisições
     // sobrepostas caiam em cache intermediário e devolvam a mesma resposta morta.
-    const tentativa = async (): Promise<Response> => {
+    const tentativa = async (): Promise<{ response: Response; controller: AbortController }> => {
         const controller = new AbortController();
         controllers.push(controller);
         const separador = url.includes('?') ? '&' : '?';
@@ -42,7 +45,7 @@ async function fetchComRetry(url: string, init?: RequestInit): Promise<Response>
             signal: controller.signal
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        return response;
+        return { response, controller };
     };
 
     return new Promise<Response>((resolve, reject) => {
@@ -51,11 +54,11 @@ async function fetchComRetry(url: string, init?: RequestInit): Promise<Response>
         let resolvida = false;
         let ultimoErro: unknown = new Error('Falha ao conectar com Apps Script');
 
-        const concluir = (response: Response) => {
+        const concluir = (resultado: { response: Response; controller: AbortController }) => {
             if (resolvida) return;
             resolvida = true;
-            limpar();
-            resolve(response);
+            limpar(resultado.controller);
+            resolve(resultado.response);
         };
 
         const falhar = () => {
