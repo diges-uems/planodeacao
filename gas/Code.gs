@@ -268,6 +268,42 @@ function lerSenhaMestreComCache(ss) {
  * Chamada por toda escrita que altera CURSOS/CONFIG, para que o próximo login
  * leia o estado novo em vez do cache velho.
  */
+/**
+ * =========================================================================
+ * IDEMPOTÊNCIA DE ESCRITAS (loteId / opId)
+ * =========================================================================
+ * A resposta do Apps Script volta por um redirect para script.googleusercontent.com,
+ * e essa perna falha de forma intermitente: o script grava, mas a resposta se perde e
+ * o frontend acha que falhou. Sem isso, repetir a operação duplicaria dados — foi o que
+ * gerava registros e acompanhamentos repetidos quando o usuário clicava de novo.
+ *
+ * O frontend gera um id por operação e o repete em todas as tentativas; aqui o id fica
+ * marcado por 6h e uma repetição é respondida com sucesso sem escrever nada.
+ */
+function operacaoJaProcessada(opId) {
+  if (!opId) return false;
+  try {
+    return CacheService.getScriptCache().get('OP_' + opId) !== null;
+  } catch (e) {
+    return false;
+  }
+}
+
+function marcarOperacaoProcessada(opId) {
+  if (!opId) return;
+  try {
+    CacheService.getScriptCache().put('OP_' + opId, '1', 21600);
+  } catch (e) {
+    // Sem a marca a repetição duplicaria, mas falhar aqui não pode derrubar a escrita.
+  }
+}
+
+function respostaDuplicada() {
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true, duplicado: true, message: 'Operação já registrada anteriormente.'
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
 function invalidarCacheCursos() {
   try {
     CacheService.getScriptCache().removeAll([CACHE_CURSOS_KEY, CACHE_CONFIG_KEY]);
@@ -890,15 +926,7 @@ function doPost(e) {
       // Por isso o frontend manda um loteId fixo por envio e repete com o MESMO id: se o
       // lote já foi gravado, aqui devolvemos sucesso sem inserir de novo.
       var loteId = data.length > 0 ? data[0].loteId : null;
-      var cacheLote = CacheService.getScriptCache();
-      if (loteId) {
-        var jaProcessado = cacheLote.get('LOTE_' + loteId);
-        if (jaProcessado) {
-          return ContentService.createTextOutput(JSON.stringify({
-            success: true, duplicado: true, message: 'Envio já registrado anteriormente.'
-          })).setMimeType(ContentService.MimeType.JSON);
-        }
-      }
+      if (operacaoJaProcessada(loteId)) return respostaDuplicada();
 
       // Coordenador só pode enviar registros do próprio curso (reitoria não usa este fluxo,
       // mas fica liberada por completude).
@@ -984,9 +1012,7 @@ function doPost(e) {
       // Marca o lote como processado ANTES de responder: se a resposta se perder no
       // caminho, a repetição com o mesmo loteId cai no atalho lá em cima em vez de
       // inserir os registros outra vez. 6h cobre com folga qualquer retentativa.
-      if (loteId) {
-        try { cacheLote.put('LOTE_' + loteId, '1', 21600); } catch (e) { /* segue sem marca */ }
-      }
+      marcarOperacaoProcessada(loteId);
 
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -1102,6 +1128,10 @@ function doPost(e) {
           registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'update', 'Registro #' + (data.id || 'antigo') + ' editado: ' + p.fragilidade);
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
         } else if (data.action === "add_acompanhamento") {
+          // Repetir um acompanhamento duplicaria o histórico, então a retentativa do
+          // frontend (quando a resposta se perde no redirect) só é segura com o opId.
+          if (operacaoJaProcessada(data.opId)) return respostaDuplicada();
+
           var acompStr = sheet.getRange(rowIndex, 16).getValue();
           var acompanhamentos = [];
           if (acompStr) {
@@ -1119,6 +1149,7 @@ function doPost(e) {
             }
           }
 
+          marcarOperacaoProcessada(data.opId);
           registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'add_acompanhamento', 'Registro #' + (data.id || 'antigo') + ' — status: ' + (data.acompanhamento && data.acompanhamento.status));
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
         } else if (data.action === "update_responsavel") {
