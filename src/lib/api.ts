@@ -391,26 +391,49 @@ export async function addAcompanhamento(
     token: string,
     id?: string
 ): Promise<{ success: boolean, message?: string }> {
-    try {
-        if (!API_URL) return { success: false, message: "API_URL não configurada." };
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
+    if (!API_URL) return { success: false, message: "API_URL não configurada." };
 
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'add_acompanhamento', ano, curso, fragilidadeAntiga, acompanhamento, id, token }),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        if (!response.ok) return { success: false, message: `HTTP Error: ${response.status}` };
-        const data = await response.json();
-        return { success: data.success === true, message: data.message };
-    } catch(e: any) {
-        console.error("Add acompanhamento error:", e);
-        return { success: false, message: e.message || "Erro de rede" };
+    // Mesmo problema do envio de registros: a resposta pode se perder no redirect do
+    // Apps Script depois do acompanhamento já ter sido gravado. O opId é gerado UMA vez
+    // e repetido nas retentativas — o backend reconhece a repetição e não duplica o
+    // histórico.
+    const opId = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+    const corpo = JSON.stringify({ action: 'add_acompanhamento', ano, curso, fragilidadeAntiga, acompanhamento, id, token, opId });
+    let ultimaMensagem = 'Erro de rede';
+
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+        try {
+            const response = await fetch(`${API_URL}?t=${Date.now()}&op=${opId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: corpo,
+                signal: controller.signal
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success === true) return { success: true };
+                ultimaMensagem = data.message || 'Falha ao registrar acompanhamento';
+                if (typeof data.message === 'string' && data.message.includes('processando outro envio')) {
+                    await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                }
+                return { success: false, message: ultimaMensagem };
+            }
+            ultimaMensagem = `HTTP Error: ${response.status}`;
+        } catch (e: any) {
+            console.error(`Add acompanhamento error (tentativa ${tentativa + 1}):`, e);
+            ultimaMensagem = e?.message || 'Erro de rede';
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        if (tentativa < 2) await new Promise(r => setTimeout(r, 1500 * (tentativa + 1)));
     }
+
+    return { success: false, message: ultimaMensagem };
 }
 
 export async function getDeadlines(token: string): Promise<Record<string, string>> {
