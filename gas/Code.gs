@@ -569,14 +569,8 @@ function doPost(e) {
     // registrados update, delete, add_acompanhamento, update_responsavel,
     // liberar_edicao e register_course_email.
     if (data.action === 'login') {
-      // Instrumentação sob demanda: {"action":"login","diag":true} devolve o tempo de
-      // cada etapa em _diag, para medir onde o login gasta o tempo sem adivinhação.
-      var diag = data.diag === true;
-      var t0 = Date.now();
       var masterConfig = lerSenhaMestreComCache(ss);
-      var tConfig = Date.now();
       var cData = lerCursosComCache(ss);
-      var tCursos = Date.now();
 
       if (data.password === masterConfig) {
         var courses = {};
@@ -606,16 +600,7 @@ function doPost(e) {
         }
       }
 
-      var respostaFalha = { success: false, message: 'Senha inválida' };
-      if (diag) {
-        respostaFalha._diag = {
-          config_ms: tConfig - t0,
-          cursos_ms: tCursos - tConfig,
-          log_ms: Date.now() - tCursos,
-          total_ms: Date.now() - t0
-        };
-      }
-      return ContentService.createTextOutput(JSON.stringify(respostaFalha)).setMimeType(ContentService.MimeType.JSON);
+      return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Senha inválida' })).setMimeType(ContentService.MimeType.JSON);
     }
 
     // A partir daqui, toda ação exige um token válido. Quando o payload é um array puro
@@ -1037,17 +1022,7 @@ function doPost(e) {
       // problema que não tem nada a ver com autenticação. Não vaza informação: quem chamou
       // já sabe qual registro pediu.
       if (rowIndex === -1) {
-        var respostaNaoEncontrado = { success: false, message: 'Registro não encontrado.' };
-        if (data.diag === true) {
-          respostaNaoEncontrado._diag = {
-            aba: data.ano ? data.ano.toString() : null,
-            linhas_na_aba: values.length,
-            id_procurado: data.id || null,
-            curso_procurado: data.curso || null,
-            ids_na_aba: values.slice(0, 60).map(function(l) { return l[0]; }).filter(function(v) { return v !== '' && v !== 'ID'; })
-          };
-        }
-        return ContentService.createTextOutput(JSON.stringify(respostaNaoEncontrado)).setMimeType(ContentService.MimeType.JSON);
+        return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Registro não encontrado.' })).setMimeType(ContentService.MimeType.JSON);
       }
 
       var codigoCursoDaLinha = values[rowIndex - 1][2];
@@ -1056,12 +1031,6 @@ function doPost(e) {
       // Coordenador só pode mexer em registros do próprio curso. add_acompanhamento não depende de "Liberado".
       if (claims.role === 'coordenador') {
         if (String(codigoCursoDaLinha) !== String(claims.courseId)) {
-          if (data.diag === true) {
-            return ContentService.createTextOutput(JSON.stringify({
-              success: false, message: 'Não autorizado.',
-              _diag: { codigo_da_linha: codigoCursoDaLinha, tipo: typeof codigoCursoDaLinha, courseId_do_token: claims.courseId }
-            })).setMimeType(ContentService.MimeType.JSON);
-          }
           return respostaNaoAutorizado();
         }
       }
