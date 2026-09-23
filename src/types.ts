@@ -1,5 +1,6 @@
 export type StatusAcompanhamento = 
-  | 'Em Andamento'
+  | 'Em execução'
+  | 'Em Andamento' // legado: registros gravados antes de 'Em execução' existir
   | 'Concluída'
   | 'Não Concluída'
   | 'Suspensa'

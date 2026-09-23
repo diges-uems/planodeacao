@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Fragility, User, Acompanhamento, StatusAcompanhamento } from '../types';
-import { ClipboardCheck, X } from 'lucide-react';
+import { ClipboardCheck, X, Check, Loader2 } from 'lucide-react';
 import { formatDateTimeBR, parseResponsaveis } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { DatePickerInput } from './DatePickerInput';
@@ -16,6 +16,7 @@ interface AcompanhamentoModalProps {
 }
 
 const STATUS_OPTIONS: StatusAcompanhamento[] = [
+    'Em execução',
     'Concluída',
     'Prazo prorrogado',
     'Não executada'
@@ -26,8 +27,24 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
     const [descricao, setDescricao] = useState('');
     const [registradoPor, setRegistradoPor] = useState(currentUser.role === 'reitoria' ? 'PROE' : (currentUser.courseName || ''));
     const [novoPrazo, setNovoPrazo] = useState('');
+    // Índice do responsável cujo clique ainda está sendo gravado na planilha. O envio
+    // leva alguns segundos (Apps Script), e sem sinal nenhum o usuário clicava de novo
+    // achando que não tinha pego.
+    const [salvandoResponsavel, setSalvandoResponsavel] = useState<number | null>(null);
 
     if (!isOpen || !item) return null;
+
+    const responsaveis = parseResponsaveis(item.responsavel);
+    const concluidos = responsaveis.filter(r => r.feito).length;
+
+    const handleToggle = async (idx: number, feito: boolean) => {
+        setSalvandoResponsavel(idx);
+        try {
+            await onToggleResponsavel(idx, feito);
+        } finally {
+            setSalvandoResponsavel(null);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,6 +69,7 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
 
     const getStatusColor = (s: string) => {
         switch (s) {
+            case 'Em execução': return 'border-transparent';
             case 'Em Andamento': return 'border-transparent';
             case 'Concluída': return 'border-transparent';
             case 'Não Concluída': return 'border-transparent';
@@ -64,6 +82,7 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
 
     const getStatusSeal = (s: string): React.CSSProperties => {
         switch (s) {
+            case 'Em execução': return { color: 'var(--color-seal-pendente)', background: 'var(--color-seal-pendente-bg)' };
             case 'Em Andamento': return { color: 'var(--color-seal-aguardando)', background: 'var(--color-seal-aguardando-bg)' };
             case 'Concluída': return { color: 'var(--color-seal-concluida)', background: 'var(--color-seal-concluida-bg)' };
             case 'Não Concluída': return { color: 'var(--color-seal-nao-executada)', background: 'var(--color-seal-nao-executada-bg)' };
@@ -102,20 +121,54 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
                 <div className="space-y-8">
                     {/* Checklist de Responsáveis */}
                     <div>
-                        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">Responsáveis</h4>
+                        <div className="flex items-baseline justify-between mb-4">
+                            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Responsáveis</h4>
+                            {responsaveis.length > 0 && (
+                                <span className="text-[11px] font-bold text-slate-400 tabular-nums">
+                                    {concluidos} de {responsaveis.length} concluíram
+                                </span>
+                            )}
+                        </div>
                         <div className="space-y-2">
-                            {parseResponsaveis(item.responsavel).map((r, idx) => (
-                                <label key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100 text-sm text-slate-700 cursor-pointer">
+                            {responsaveis.map((r, idx) => {
+                                const salvando = salvandoResponsavel === idx;
+                                return (
+                                <label
+                                    key={idx}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border text-sm transition-colors duration-200 ${
+                                        salvando
+                                            ? 'bg-blue-50 border-blue-200 cursor-wait'
+                                            : r.feito
+                                                ? 'bg-emerald-50 border-emerald-200 text-slate-700 cursor-pointer'
+                                                : 'bg-slate-50 border-slate-100 text-slate-700 cursor-pointer hover:border-slate-300'
+                                    }`}
+                                >
                                     <input
                                         type="checkbox"
                                         checked={r.feito}
-                                        disabled={isProcessing}
-                                        onChange={(e) => onToggleResponsavel(idx, e.target.checked)}
+                                        disabled={isProcessing || salvandoResponsavel !== null}
+                                        onChange={(e) => handleToggle(idx, e.target.checked)}
+                                        className="accent-emerald-600 w-4 h-4"
                                     />
                                     <span className={r.feito ? 'line-through text-slate-400' : 'font-medium'}>{r.nome}</span>
-                                    {r.feito && <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-600 ml-auto">Concluiu sua parte</span>}
+                                    {salvando ? (
+                                        <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-uems-blue ml-auto">
+                                            <Loader2 className="w-3 h-3 animate-spin" />
+                                            Salvando
+                                        </span>
+                                    ) : r.feito ? (
+                                        <motion.span
+                                            initial={{ opacity: 0, x: 4 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-emerald-600 ml-auto"
+                                        >
+                                            <Check className="w-3 h-3" />
+                                            Concluiu sua parte
+                                        </motion.span>
+                                    ) : null}
                                 </label>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -186,7 +239,7 @@ export function AcompanhamentoModal({ isOpen, onClose, item, currentUser, onSave
                                 onChange={(e) => setDescricao(e.target.value)} 
                                 rows={3} 
                                 className="input-uems font-medium" 
-                                placeholder={status === 'Não executada' ? 'Por que não foi executada?' : status === 'Prazo prorrogado' ? 'Justificativa para a prorrogação...' : 'Descreva o andamento...'}
+                                placeholder={status === 'Não executada' ? 'Por que não foi executada?' : status === 'Prazo prorrogado' ? 'Justificativa para a prorrogação...' : status === 'Em execução' ? 'O que já foi feito e o que falta?' : 'Descreva o andamento...'}
                                 required
                             />
                         </div>

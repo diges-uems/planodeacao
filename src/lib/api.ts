@@ -17,10 +17,16 @@ import type { Fragility, Acompanhamento } from '../types';
 // Só pode ser usado em chamadas idempotentes (leituras): um 404 nessa perna NÃO garante
 // que o script deixou de rodar, então sobrepor ou repetir uma escrita duplicaria registros.
 const HEDGE_MS = 3000;
-const TIMEOUT_TOTAL_MS = 30000;
+const TIMEOUT_TENTATIVA_MS = 12000;
+const TIMEOUT_TOTAL_MS = 40000;
 const TENTATIVAS_LEITURA = 3;
 
-async function fetchComRetry(url: string, init?: RequestInit): Promise<Response> {
+async function fetchComRetry(url: string, init?: RequestInit, opcoes?: { hedge?: boolean }): Promise<Response> {
+    // Sobrepor requisições multiplica a carga no Apps Script, que tem cota de execuções
+    // simultâneas. Para a leitura do dashboard — que lê TODAS as abas de ano — três
+    // tentativas em paralelo pesavam o suficiente para atrasar quem estava tentando
+    // gravar. Chamadas pesadas usam hedge: false e apenas repetem em sequência.
+    const usarHedge = opcoes?.hedge !== false;
     const controllers: AbortController[] = [];
     const timers: ReturnType<typeof setTimeout>[] = [];
 
@@ -36,9 +42,7 @@ async function fetchComRetry(url: string, init?: RequestInit): Promise<Response>
 
     // Cada tentativa usa uma URL própria: o parâmetro t=... evita que as requisições
     // sobrepostas caiam em cache intermediário e devolvam a mesma resposta morta.
-    const tentativa = async (): Promise<{ response: Response; controller: AbortController }> => {
-        const controller = new AbortController();
-        controllers.push(controller);
+    const tentativa = async (controller: AbortController): Promise<{ response: Response; controller: AbortController }> => {
         const separador = url.includes('?') ? '&' : '?';
         const response = await fetch(`${url}${separador}h=${Date.now()}${Math.random()}`, {
             ...init,
@@ -73,7 +77,10 @@ async function fetchComRetry(url: string, init?: RequestInit): Promise<Response>
             disparadas++;
             pendentes++;
 
-            tentativa().then(concluir).catch(e => {
+            const controller = new AbortController();
+            controllers.push(controller);
+
+            tentativa(controller).then(concluir).catch(e => {
                 ultimoErro = e;
                 pendentes--;
                 // Se a tentativa morreu antes do prazo do hedge, não espera: dispara já.
@@ -82,7 +89,15 @@ async function fetchComRetry(url: string, init?: RequestInit): Promise<Response>
             });
 
             if (disparadas < TENTATIVAS_LEITURA) {
-                timers.push(setTimeout(disparar, HEDGE_MS));
+                timers.push(setTimeout(
+                    usarHedge
+                        // Com hedge: dispara outra em paralelo, sem cancelar esta.
+                        ? disparar
+                        // Sem hedge: aborta esta tentativa, o que faz o catch acima
+                        // disparar a próxima — uma de cada vez, sem multiplicar a carga.
+                        : () => { try { controller.abort(); } catch { /* já finalizada */ } },
+                    usarHedge ? HEDGE_MS : TIMEOUT_TENTATIVA_MS
+                ));
             }
         };
 
@@ -97,7 +112,7 @@ async function fetchComRetry(url: string, init?: RequestInit): Promise<Response>
 
 export async function fetchDashboardData(token: string): Promise<Fragility[] | null> {
     try {
-        const response = await fetchComRetry(`${API_URL}?t=${Date.now()}&token=${encodeURIComponent(token)}`);
+        const response = await fetchComRetry(`${API_URL}?t=${Date.now()}&token=${encodeURIComponent(token)}`, undefined, { hedge: false });
         const data = await response.json();
         return Array.isArray(data) ? data.reverse().map((item: any, i: number) => ({ ...item, _id: `${item.ano}|${item.curso}|${item.fragilidade}|${i}` })) : null;
     } catch (e) {
