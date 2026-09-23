@@ -882,6 +882,24 @@ function doPost(e) {
     // 1. GRAVAÇÃO EM LOTE E CRIAÇÃO DE TABELAS
     // =====================================================================
     if (Array.isArray(data)) {
+      // IDEMPOTÊNCIA DO ENVIO
+      // A resposta do Apps Script volta por um redirect para script.googleusercontent.com,
+      // e essa perna falha de forma intermitente: o script grava os registros, mas a
+      // resposta se perde e o frontend mostra "falha ao enviar". O usuário reenvia o
+      // carrinho e duplica tudo na planilha.
+      // Por isso o frontend manda um loteId fixo por envio e repete com o MESMO id: se o
+      // lote já foi gravado, aqui devolvemos sucesso sem inserir de novo.
+      var loteId = data.length > 0 ? data[0].loteId : null;
+      var cacheLote = CacheService.getScriptCache();
+      if (loteId) {
+        var jaProcessado = cacheLote.get('LOTE_' + loteId);
+        if (jaProcessado) {
+          return ContentService.createTextOutput(JSON.stringify({
+            success: true, duplicado: true, message: 'Envio já registrado anteriormente.'
+          })).setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+
       // Coordenador só pode enviar registros do próprio curso (reitoria não usa este fluxo,
       // mas fica liberada por completude).
       if (claims.role === 'coordenador') {
@@ -962,6 +980,14 @@ function doPost(e) {
       }
 
       registrarLog(claims.role, claims.courseId, claims.courseName, 'envio_lote', registrosAdicionados + ' registro(s) inserido(s): ' + cursosAfetadosStr.replace(/<[^>]+>/g, ' ').trim());
+
+      // Marca o lote como processado ANTES de responder: se a resposta se perder no
+      // caminho, a repetição com o mesmo loteId cai no atalho lá em cima em vez de
+      // inserir os registros outra vez. 6h cobre com folga qualquer retentativa.
+      if (loteId) {
+        try { cacheLote.put('LOTE_' + loteId, '1', 21600); } catch (e) { /* segue sem marca */ }
+      }
+
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
     }
 

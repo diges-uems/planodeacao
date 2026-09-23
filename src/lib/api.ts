@@ -122,26 +122,47 @@ export async function fetchDashboardData(token: string): Promise<Fragility[] | n
 }
 
 export async function submitCart(cart: Fragility[], token: string): Promise<boolean> {
-    try {
-        if (!API_URL) return false;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
+    if (!API_URL) return false;
 
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(cart.map(item => ({ ...item, token }))),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        if (!response.ok) return false;
-        const data = await response.json();
-        return data.success === true;
-    } catch(e) {
-        console.error("Submit error:", e);
-        return false;
+    // A resposta do Apps Script volta por um redirect que falha de forma intermitente:
+    // o script grava os registros, mas a resposta se perde. Sem retentativa o usuário via
+    // "falha ao enviar" e reenviava o carrinho, duplicando tudo na planilha.
+    // O loteId é gerado UMA vez e repetido em todas as tentativas — o backend reconhece
+    // um lote já gravado e responde sucesso sem inserir de novo, então repetir é seguro.
+    const loteId = (crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`);
+    const corpo = JSON.stringify(cart.map(item => ({ ...item, token, loteId })));
+
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 45000);
+        try {
+            const response = await fetch(`${API_URL}?t=${Date.now()}&lote=${loteId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: corpo,
+                signal: controller.signal
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success === true) return true;
+                // Disputa de lock no backend: a mensagem pede para tentar de novo.
+                if (typeof data.message === 'string' && data.message.includes('processando outro envio')) {
+                    await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                }
+                return false;
+            }
+        } catch (e) {
+            console.error(`Submit error (tentativa ${tentativa + 1}):`, e);
+        } finally {
+            clearTimeout(timeoutId);
+        }
+
+        if (tentativa < 2) await new Promise(r => setTimeout(r, 1500 * (tentativa + 1)));
     }
+
+    return false;
 }
 
 export async function deleteFragility(ano: string, curso: string, fragilidadeAntiga: string, codigoCurso: string, token: string, id?: string): Promise<boolean> {
