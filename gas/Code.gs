@@ -1031,12 +1031,37 @@ function doPost(e) {
       // nunca do que o cliente informou em data.codigoCurso/data.curso — evita que um coordenador
       // (ou qualquer chamador) minta sobre o curso para escapar da checagem de propriedade, do gate
       // "Liberado" (abaixo) ou da revogação de liberação de uso único (revogarLiberacao).
-      var codigoCursoDaLinha = rowIndex !== -1 ? values[rowIndex - 1][2] : null;
-      var nomeCursoDaLinha = rowIndex !== -1 ? values[rowIndex - 1][3] : data.curso;
+      // Linha inexistente é respondida ANTES da checagem de dono: antes, rowIndex === -1
+      // deixava codigoCursoDaLinha nulo, a comparação com o courseId falhava e o usuário
+      // recebia "Não autorizado. Faça login novamente." — era mandado refazer login por um
+      // problema que não tem nada a ver com autenticação. Não vaza informação: quem chamou
+      // já sabe qual registro pediu.
+      if (rowIndex === -1) {
+        var respostaNaoEncontrado = { success: false, message: 'Registro não encontrado.' };
+        if (data.diag === true) {
+          respostaNaoEncontrado._diag = {
+            aba: data.ano ? data.ano.toString() : null,
+            linhas_na_aba: values.length,
+            id_procurado: data.id || null,
+            curso_procurado: data.curso || null,
+            ids_na_aba: values.slice(0, 60).map(function(l) { return l[0]; }).filter(function(v) { return v !== '' && v !== 'ID'; })
+          };
+        }
+        return ContentService.createTextOutput(JSON.stringify(respostaNaoEncontrado)).setMimeType(ContentService.MimeType.JSON);
+      }
+
+      var codigoCursoDaLinha = values[rowIndex - 1][2];
+      var nomeCursoDaLinha = values[rowIndex - 1][3];
 
       // Coordenador só pode mexer em registros do próprio curso. add_acompanhamento não depende de "Liberado".
       if (claims.role === 'coordenador') {
         if (String(codigoCursoDaLinha) !== String(claims.courseId)) {
+          if (data.diag === true) {
+            return ContentService.createTextOutput(JSON.stringify({
+              success: false, message: 'Não autorizado.',
+              _diag: { codigo_da_linha: codigoCursoDaLinha, tipo: typeof codigoCursoDaLinha, courseId_do_token: claims.courseId }
+            })).setMimeType(ContentService.MimeType.JSON);
+          }
           return respostaNaoAutorizado();
         }
       }
