@@ -507,7 +507,16 @@ function doPost(e) {
   var lock = null;
   if (precisaLock) {
     lock = LockService.getScriptLock();
-    lock.waitLock(15000);
+    // tryLock em vez de waitLock: waitLock lanca excecao quando estoura o prazo, e como
+    // isso acontecia ANTES do try/catch abaixo, o Apps Script respondia com uma pagina
+    // HTML de erro — o frontend nao conseguia parsear e o usuario via "falha ao enviar
+    // registro" sem nenhuma explicacao. Agora a disputa pelo lock vira resposta JSON.
+    if (!lock.tryLock(25000)) {
+      return ContentService.createTextOutput(JSON.stringify({
+        success: false,
+        message: 'O sistema está processando outro envio neste momento. Aguarde alguns segundos e tente novamente.'
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
   }
 
   try {
@@ -923,7 +932,7 @@ function doPost(e) {
          var detalhesLote = "<div class='detail-row'><span class='detail-label sans'>Registros Inseridos</span><span class='detail-value sans'>" + registrosAdicionados + "</span></div>" +
                             "<div class='detail-row'><span class='detail-label sans'>Cursos Atualizados</span><span class='detail-value sans'>" + cursosAfetadosStr + "</span></div>";
 
-         enviarEmail(
+         agendarEmail(
              "[PROE/UEMS] Novos Registros - Plano de Ação",
              "Foram submetidos novos registros de Planos de Ação no sistema com sucesso. A planilha base já foi consolidada.",
              detalhesLote,
@@ -939,7 +948,7 @@ function doPost(e) {
                          var detalhesCur = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + curso + "</span></div>" +
                                            "<div class='detail-row'><span class='detail-label sans'>Ano Ref.</span><span class='detail-value sans'>" + ano + "</span></div>" +
                                            "<div class='detail-row'><span class='detail-label sans'>Registros Inseridos</span><span class='detail-value sans'>" + qtd + "</span></div>";
-                         enviarEmail(
+                         agendarEmail(
                              "[PROE/UEMS] Novos Registros - Plano de Ação",
                              "Seu curso recebeu novos registros de Plano de Ação submetidos no sistema.",
                              detalhesCur,
@@ -1019,12 +1028,12 @@ function doPost(e) {
                                  "<div class='detail-row'><span class='detail-label sans'>Ano Ref.</span><span class='detail-value sans'>" + data.ano + "</span></div>" +
                                  "<div class='detail-row'><span class='detail-label sans'>ID Registro</span><span class='detail-value sans'>#" + (data.id || "antigo") + "</span></div>" +
                                  "<div class='detail-row'><span class='detail-label sans'>Registro Excluído</span><span class='detail-value sans'><i>" + data.fragilidadeAntiga + "</i></span></div>";
-          enviarEmail("[PROE/UEMS] Aviso: Plano de Ação Excluído", "Um registro de plano de ação foi removido permanentemente do sistema.", detalhesExclusao, false);
+          agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Excluído", "Um registro de plano de ação foi removido permanentemente do sistema.", detalhesExclusao, false);
 
           if (NOTIFICACOES_POR_CURSO_ATIVAS) {
               var emailCurso = buscarEmailDoCurso(data.curso);
               if (emailCurso && emailCurso.toLowerCase() !== "enade@uems.br") {
-                  enviarEmail("[PROE/UEMS] Aviso: Plano de Ação Excluído", "Um registro de plano de ação do seu curso foi removido permanentemente do sistema.", detalhesExclusao, false, emailCurso);
+                  agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Excluído", "Um registro de plano de ação do seu curso foi removido permanentemente do sistema.", detalhesExclusao, false, emailCurso);
               }
           }
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
@@ -1055,12 +1064,12 @@ function doPost(e) {
                                "<div class='detail-row'><span class='detail-label sans'>Ação Planejada</span><span class='detail-value sans'>" + p.acao + "</span></div>" +
                                "<div class='detail-row'><span class='detail-label sans'>Data Final</span><span class='detail-value sans'>" + formatarDataSegura(p.prazo) + "</span></div>" +
                                "<div class='detail-row'><span class='detail-label sans'>Data da Reunião</span><span class='detail-value sans'>" + (p.dataReuniao ? formatarDataSegura(p.dataReuniao) : "") + "</span></div>";
-          enviarEmail("[PROE/UEMS] Aviso: Plano de Ação Atualizado", "Um registro de plano de ação foi editado e atualizado no sistema com novas diretrizes.", detalhesEdicao, false);
+          agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Atualizado", "Um registro de plano de ação foi editado e atualizado no sistema com novas diretrizes.", detalhesEdicao, false);
 
           if (NOTIFICACOES_POR_CURSO_ATIVAS) {
               var emailCurso = buscarEmailDoCurso(data.curso);
               if (emailCurso && emailCurso.toLowerCase() !== "enade@uems.br") {
-                  enviarEmail("[PROE/UEMS] Aviso: Plano de Ação Atualizado", "Um registro de plano de ação do seu curso foi editado e atualizado no sistema com novas diretrizes.", detalhesEdicao, false, emailCurso);
+                  agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Atualizado", "Um registro de plano de ação do seu curso foi editado e atualizado no sistema com novas diretrizes.", detalhesEdicao, false, emailCurso);
               }
           }
 
@@ -1109,6 +1118,9 @@ function doPost(e) {
       flushLogBuffer();
       lock.releaseLock();
     }
+    // Só depois de soltar o lock: cada e-mail custa 1-2s e não pode bloquear quem
+    // estiver esperando para escrever.
+    despacharEmailsPendentes();
   }
 }
 
@@ -1121,6 +1133,38 @@ function doPost(e) {
  * Envia para enade@uems.br e, opcionalmente, para um destinatário específico (toOverride)
  * ou para o e-mail do curso se NOTIFICACOES_POR_CURSO_ATIVAS = true.
  */
+/**
+ * =========================================================================
+ * FILA DE E-MAILS DE NOTIFICAÇÃO (enviados FORA do lock)
+ * =========================================================================
+ * Cada enviarEmail() pelo GmailApp leva 1 a 2 segundos. Como as notificações de
+ * envio/edição/exclusão eram disparadas ainda dentro do lock de escrita, um único
+ * envio de lote segurava o lock do script durante todos os e-mails — e os outros
+ * usuários ficavam presos no tryLock, vendo "falha ao enviar registro".
+ *
+ * Agora essas notificações (que são fire-and-forget: ninguém espera resposta delas)
+ * entram nesta fila e são despachadas no finally do doPost, depois do lock liberado.
+ * Os e-mails que o usuário espera confirmação (cobrança, alerta de prazo, teste)
+ * continuam sendo enviados na hora, porque a resposta informa quantos foram enviados.
+ */
+var FILA_EMAILS = [];
+
+function agendarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverride, ccEmail) {
+  FILA_EMAILS.push([assunto, textoPrincipal, detalhesContexto, isTest, toOverride, ccEmail]);
+}
+
+function despacharEmailsPendentes() {
+  var fila = FILA_EMAILS;
+  FILA_EMAILS = [];
+  for (var i = 0; i < fila.length; i++) {
+    try {
+      enviarEmail(fila[i][0], fila[i][1], fila[i][2], fila[i][3], fila[i][4], fila[i][5]);
+    } catch (err) {
+      // Notificação é acessória; nunca deve derrubar uma escrita que já foi concluída.
+    }
+  }
+}
+
 function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverride, ccEmail) {
   var targetEmail = toOverride || "enade@uems.br"; // ALVO RECEBEDOR
 

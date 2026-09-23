@@ -361,6 +361,10 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
             displayStatus = 'Não executada';
             sealColor = 'var(--color-seal-nao-executada)';
             sealBg = 'var(--color-seal-nao-executada-bg)';
+        } else if (status === 'Em execução' || status === 'Em Andamento') {
+            // Status declarado pelo coordenador tem precedência sobre o prazo vencido:
+            // quem registrou que está executando já deu satisfação sobre o andamento.
+            displayStatus = 'Em execução';
         } else if (datePrazo && datePrazo < now) {
             displayStatus = 'Aguardando parecer';
             sealColor = 'var(--color-seal-aguardando)';
