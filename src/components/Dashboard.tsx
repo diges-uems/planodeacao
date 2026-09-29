@@ -20,6 +20,55 @@ interface DashboardProps {
     onPodeEditarAtualizado?: (podeEditar: boolean) => void;
 }
 
+const DIA_MS = 86_400_000;
+
+function parseDate(dStr: string | null | undefined): Date | null {
+    if (!dStr) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return new Date(dStr + "T00:00:00");
+    const parts = dStr.split('/');
+    if (parts.length === 3) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+    const d = new Date(dStr); // ISO com hora (ex.: dataReuniao)
+    return isNaN(d.getTime()) ? null : d;
+}
+
+function getStatus(row: Fragility) {
+    return row.statusAtual || (row.acompanhamentos && row.acompanhamentos.length > 0 ? row.acompanhamentos[row.acompanhamentos.length - 1].status : null);
+}
+
+function isFinalizado(row: Fragility) {
+    const s = getStatus(row);
+    return s === 'Concluída' || s === 'Não executada';
+}
+
+// Barra de decurso do prazo: da data da reunião (início do plano) até o prazo final.
+function PrazoBar({ row }: { row: Fragility }) {
+    const fim = parseDate(row.prazo);
+    if (!fim || isFinalizado(row)) return null;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const inicio = parseDate(row.dataReuniao);
+    const dias = Math.round((fim.getTime() - hoje.getTime()) / DIA_MS);
+    const pct = inicio && fim > inicio
+        ? Math.min(100, Math.max(0, ((hoje.getTime() - inicio.getTime()) / (fim.getTime() - inicio.getTime())) * 100))
+        : (dias < 0 ? 100 : 0);
+
+    const cor = dias < 0 ? 'var(--color-seal-nao-executada)'
+        : dias <= 30 ? 'var(--color-seal-pendente)'
+        : 'var(--color-seal-aguardando)';
+    const texto = dias < 0 ? `Vencido há ${-dias} dia${dias === -1 ? '' : 's'}`
+        : dias === 0 ? 'Vence hoje'
+        : `Faltam ${dias} dia${dias === 1 ? '' : 's'}`;
+
+    return (
+        <div className="mt-1 mb-1.5 max-w-[180px]">
+            <div className="h-1 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Decurso do prazo">
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cor }} />
+            </div>
+            <span className="text-[11px] font-medium" style={{ color: cor }}>{texto}</span>
+        </div>
+    );
+}
+
 export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, onConsumirLiberacao, onPodeEditarAtualizado }: DashboardProps) {
     const isProe = user.role === 'reitoria';
     const [data, setData] = useState<Fragility[]>([]);
@@ -171,6 +220,15 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
 
         if (selectedAno) {
             filtered = filtered.filter(d => String(d.ano) === String(selectedAno));
+        }
+
+        if (!isProe) {
+            // Coordenador: mais próximo de vencer (ou já vencido) primeiro; finalizados e sem prazo no fim.
+            const chave = (d: Fragility) => {
+                if (isFinalizado(d)) return Infinity;
+                return parseDate(d.prazo)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+            };
+            filtered = [...filtered].sort((a, b) => chave(a) - chave(b));
         }
 
         return filtered;
@@ -335,16 +393,8 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     };
 
     const renderStatusBadge = (row: Fragility) => {
-        const status = row.statusAtual || (row.acompanhamentos && row.acompanhamentos.length > 0 ? row.acompanhamentos[row.acompanhamentos.length - 1].status : null);
-        
-        const parseDate = (dStr: string) => {
-            if (!dStr) return null;
-            if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return new Date(dStr + "T00:00:00");
-            const parts = dStr.split('/');
-            if (parts.length === 3) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-            return null;
-        }
-        
+        const status = getStatus(row);
+
         const datePrazo = parseDate(row.prazo);
         const now = new Date();
         now.setHours(0,0,0,0);
@@ -678,7 +728,10 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                                             </td>
                                             <td>
                                                 <div className="text-sm text-slate-700 space-y-1">
-                                                    <div><span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Data Final:</span> {prazoDisplay}</div>
+                                                    <div>
+                                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Data Final:</span> {prazoDisplay}
+                                                        {!isProe && <PrazoBar row={row} />}
+                                                    </div>
                                                     <div>
                                                         <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">RP:</span>{' '}
                                                         {parseResponsaveis(row.responsavel).map((r, i, arr) => (
