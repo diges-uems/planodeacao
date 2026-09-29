@@ -120,12 +120,6 @@ body {
 }
 
 @layer utilities {
-  .section-group {
-    border-left: 3px solid var(--color-uems-gold);
-    padding-left: 1.25rem;
-    margin-bottom: 2rem;
-  }
-
   .section-group-title {
     font-family: var(--font-serif);
     font-style: italic;

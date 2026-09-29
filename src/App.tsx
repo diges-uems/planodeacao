@@ -7,7 +7,7 @@ import { EditModal } from './components/EditModal';
 import { RegisterEmailModal } from './components/RegisterEmailModal';
 import type { Fragility, User, ViewState } from './types';
 import { submitCart, registerCourseEmail } from './lib/api';
-import { LogOut, LayoutDashboard } from 'lucide-react';
+import { LogOut, ArrowLeft } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 // Sessão sobrevive a recarregar a página, mas não a fechar a aba (sessionStorage) nem a
@@ -179,38 +179,31 @@ export default function App() {
                 <div className="bg-slate-50 text-slate-900 min-h-screen flex flex-col relative overflow-x-hidden pt-6">
                     <main className="w-full max-w-[98%] 2xl:max-w-[1800px] mx-auto p-4 sm:p-6 sm:pt-2 flex-grow flex-col relative z-10">
                         {view === 'formulario' && user.role === 'coordenador' && (
-                            <div className="space-y-8 w-full text-left">
-                                {/* Cabeçalho Utilitário */}
-                                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-white border border-slate-200 rounded-lg px-4 py-3">
-                                    <div className="flex items-center gap-3 w-full sm:w-auto">
-                                        <button onClick={handleLogout} className="bg-slate-50/50 text-slate-500 px-5 py-2.5 rounded-md text-sm font-medium border border-slate-200/60 hover:bg-slate-100 hover:text-slate-800 transition-all flex items-center gap-2">
+                            <div className="w-full text-left pb-10">
+                                <header className="bg-uems-dark border-b-[3px] border-uems-gold px-6 py-3 sticky top-0 z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 -mx-4 sm:-mx-6 -mt-6 sm:-mt-2 gap-4">
+                                    <div>
+                                        <h1 className="font-serif-boletim italic text-xl font-semibold text-white">{user.courseName}</h1>
+                                        <span className="text-[11px] font-semibold text-[#A9BCDD] uppercase tracking-wide">Gestão do Curso</span>
+                                    </div>
+                                    <nav aria-label="Navegação" className="flex flex-wrap gap-2">
+                                        <button onClick={() => setView('dashboard')} className="h-9 px-3.5 rounded-md text-[13px] font-semibold flex items-center gap-2 border border-white/25 text-[#E6ECF5] hover:bg-white/10 transition-colors">
+                                            <ArrowLeft className="w-4 h-4" /> Voltar aos registros
+                                        </button>
+                                        <button onClick={handleLogout} className="h-9 px-3.5 rounded-md text-[13px] font-semibold flex items-center gap-2 border border-white/25 text-[#E6ECF5] hover:bg-white/10 transition-colors">
                                             <LogOut className="w-4 h-4" /> Sair
                                         </button>
-                                        <span className="text-sm font-medium text-slate-700 bg-slate-50 px-4 py-2.5 rounded-md border border-slate-200 truncate max-w-[200px] sm:max-w-xs block">
-                                            {user.courseName}
-                                        </span>
-                                    </div>
-                                    <div className="flex gap-3 w-full sm:w-auto justify-end">
-                                        <button onClick={() => setView('dashboard')} className="flex-1 sm:flex-none bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-2.5 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-2">
-                                            <LayoutDashboard className="w-4 h-4 shrink-0" />
-                                            <span className="truncate">Acessar Registros</span>
-                                        </button>
-                                    </div>
-                                </div>
+                                    </nav>
+                                </header>
 
-                                <ActionForm 
-                                    user={user} 
-                                    cartLength={cart.length}
-                                    onSaveToCart={handleSaveToCart} 
+                                <ActionForm
+                                    user={user}
+                                    cart={cart}
+                                    onSaveToCart={handleSaveToCart}
+                                    onEditCartItem={handleEditCartItem}
+                                    onRemoveCartItem={handleRemoveFromCart}
                                     onReview={() => setIsCartOpen(true)}
                                     showAlert={(title, message) => setAlertState({ title, message })}
                                 />
-
-                                <div className="text-right pb-8">
-                                    <button onClick={() => cart.length > 0 && setIsCartOpen(true)} className="bg-slate-100 text-slate-500 text-xs font-semibold px-5 py-2.5 rounded-md uppercase tracking-wide hover:bg-slate-200 transition-colors">
-                                        {cart.length} itens salvos
-                                    </button>
-                                </div>
                             </div>
                         )}
 
