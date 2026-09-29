@@ -243,35 +243,42 @@ export async function updateResponsavel(
     token: string,
     id?: string
 ): Promise<boolean> {
-    try {
-        if (!API_URL) return false;
+    if (!API_URL) return false;
+
+    // Grava a coluna inteira pelo id (valor absoluto), então repetir é seguro — no pior
+    // caso sai uma linha a mais no log. Sem retentativa, a falha intermitente do redirect
+    // do Apps Script virava "Falha ao atualizar responsável" com frequência.
+    const corpo = JSON.stringify({ action: 'update_responsavel', ano, curso, fragilidadeAntiga, codigoCurso, responsavel, id, token });
+
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        try {
+            const response = await fetch(`${API_URL}?t=${Date.now()}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: corpo,
+                signal: controller.signal
+            });
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success === true) return true;
+                if (typeof data.message === 'string' && data.message.includes('processando outro envio')) {
+                    await new Promise(r => setTimeout(r, 3000));
+                    continue;
+                }
+                return false;
+            }
+        } catch (e) {
+            console.error(`Update responsavel error (tentativa ${tentativa + 1}):`, e);
+        } finally {
+            clearTimeout(timeoutId);
+        }
 
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-                action: 'update_responsavel',
-                ano,
-                curso,
-                fragilidadeAntiga,
-                codigoCurso,
-                responsavel,
-                id,
-                token
-            }),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-        if (!response.ok) return false;
-        const data = await response.json();
-        return data.success === true;
-    } catch(e) {
-        console.error("Update responsavel error:", e);
-        return false;
+        if (tentativa < 2) await new Promise(r => setTimeout(r, 1500 * (tentativa + 1)));
     }
+
+    return false;
 }
 
 export async function sendTestEmail(token: string): Promise<boolean> {

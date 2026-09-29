@@ -122,10 +122,11 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
 
         const interval = setInterval(() => {
             charCount++;
-            const nomeAtual = nomes[nomeIndex];
+            const idx = nomeIndex; // o updater roda depois; nomeIndex já pode ter avançado
+            const nomeAtual = nomes[idx];
             const parcial = nomeAtual.slice(0, charCount);
 
-            setResponsaveis(prev => prev.map((r, i) => i === nomeIndex ? { ...r, nome: parcial } : r));
+            setResponsaveis(prev => prev.map((r, i) => i === idx ? { ...r, nome: parcial } : r));
 
             if (charCount >= nomeAtual.length) {
                 nomeIndex++;
