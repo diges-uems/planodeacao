@@ -81,7 +81,11 @@ body {
     display: inline-block;
     letter-spacing: 0.06em;
   }
+}
 
+/* Em components (não utilities) para que classes como pl-9, pr-12 e py-2 aplicadas
+   junto com .input-uems consigam sobrescrever o padding padrão. */
+@layer components {
   .input-uems {
     width: 100%;
     background-color: #ffffff;
@@ -113,7 +117,9 @@ body {
     cursor: not-allowed;
     box-shadow: none;
   }
+}
 
+@layer utilities {
   .section-group {
     border-left: 3px solid var(--color-uems-gold);
     padding-left: 1.25rem;
