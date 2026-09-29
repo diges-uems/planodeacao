@@ -282,7 +282,7 @@ export function ActionForm({ user, cartLength, onSaveToCart, onReview, showAlert
     return (
         <section className="bg-white border border-slate-200 rounded-lg p-8 sm:p-12">
             <header className="relative min-h-[140px] rounded-lg overflow-hidden flex items-end p-8 mb-10">
-                <img src="https://www.uems.br/anexos/imagens/conteudo/uems_imagens_2023-09-22_13-02-19.png" className="absolute inset-0 w-full h-full object-cover" alt="Plano de Ação" />
+                <img src="campus-uems.jpg" className="absolute inset-0 w-full h-full object-cover" alt="Plano de Ação" />
                 <div className="absolute inset-0 bg-gradient-to-r from-uems-dark/90 to-uems-blue/60"></div>
                 <div className="relative z-10 text-white w-full text-left">
                     <h1 className="text-2xl font-semibold mb-1">Plano de Ação</h1>
