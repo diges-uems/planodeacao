@@ -367,19 +367,18 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         setItemToAcompanhar(null);
     };
 
-    const handleToggleResponsavel = async (index: number, feito: boolean) => {
-        if (!itemToAcompanhar) return;
-        const lista = parseResponsaveis(itemToAcompanhar.responsavel);
+    // Usado pela janela de acompanhamento e pelo painel de detalhe: um único caminho de gravação.
+    const handleToggleResponsavel = async (alvo: Fragility, index: number, feito: boolean) => {
+        const lista = parseResponsaveis(alvo.responsavel);
         if (!lista[index]) return;
         lista[index] = { ...lista[index], feito };
         const responsavelSerializado = serializeResponsaveis(lista);
-        const success = await updateResponsavel(itemToAcompanhar.ano, itemToAcompanhar.curso, itemToAcompanhar.fragilidade, itemToAcompanhar.codigoCurso, responsavelSerializado, user.token, itemToAcompanhar.id);
+        const success = await updateResponsavel(alvo.ano, alvo.curso, alvo.fragilidade, alvo.codigoCurso, responsavelSerializado, user.token, alvo.id);
         if (success) {
-            setItemToAcompanhar(prev => prev ? { ...prev, responsavel: responsavelSerializado } : prev);
-            setData(prev => prev.map(d =>
-                (d.ano === itemToAcompanhar.ano && d.curso === itemToAcompanhar.curso && d.fragilidade === itemToAcompanhar.fragilidade)
-                    ? { ...d, responsavel: responsavelSerializado } : d
-            ));
+            const mesmo = (d: Fragility) => d.ano === alvo.ano && d.curso === alvo.curso && d.fragilidade === alvo.fragilidade;
+            setItemToAcompanhar(prev => prev && mesmo(prev) ? { ...prev, responsavel: responsavelSerializado } : prev);
+            setItemToView(prev => prev && mesmo(prev) ? { ...prev, responsavel: responsavelSerializado } : prev);
+            setData(prev => prev.map(d => mesmo(d) ? { ...d, responsavel: responsavelSerializado } : d));
         } else {
             onShowAlert("Erro", "Falha ao atualizar responsável.");
         }
@@ -1047,7 +1046,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 item={itemToAcompanhar}
                 currentUser={user}
                 onSave={handleSaveAcompanhamento}
-                onToggleResponsavel={handleToggleResponsavel}
+                onToggleResponsavel={(idx, feito) => itemToAcompanhar ? handleToggleResponsavel(itemToAcompanhar, idx, feito) : Promise.resolve()}
                 isProcessing={isAcompanhando}
             />
 
@@ -1061,9 +1060,13 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
             />
 
             {itemToView && (
-                <ViewModal 
+                <ViewModal
                     item={itemToView}
                     onClose={() => setItemToView(null)}
+                    statusSeal={renderStatusBadge(itemToView)}
+                    prazoBar={<PrazoBar row={itemToView} />}
+                    onAcompanhar={!isProe ? () => { setItemToAcompanhar(itemToView); setItemToView(null); } : undefined}
+                    onToggleResponsavel={!isProe ? (idx, feito) => handleToggleResponsavel(itemToView, idx, feito) : undefined}
                 />
             )}
         </>
