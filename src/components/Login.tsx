@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { LogIn, Eye, EyeOff, XCircle, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, XCircle, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import { login, aquecerBackend } from '../lib/api';
 import type { User } from '../types';
 
@@ -51,119 +51,110 @@ export function Login({ onLogin }: LoginProps) {
         }
     };
 
+    const atualizarCaps = (e: React.KeyboardEvent) => setIsCapsOn(e.getModifierState('CapsLock'));
+
+    const titulo = (
+        <>
+            <span className="font-serif-boletim italic text-sm md:text-base tracking-wide text-uems-gold">Gestão Estratégica Institucional</span>
+            <h1 className="font-serif-boletim text-[34px] md:text-6xl font-semibold tracking-tight leading-[1.08] text-white">
+                Plano de Ação<br /><span className="text-[#D4E0F2]">dos Cursos</span>
+            </h1>
+        </>
+    );
+
     return (
-        <div className="flex items-center justify-center w-full min-h-screen relative overflow-hidden p-4 md:p-8">
-            <img
-                src="campus-uems.jpg"
-                className="absolute inset-0 w-full h-full object-cover"
-                alt="Fundo UEMS"
-            />
-            <div
-                className="absolute inset-0"
-                style={{ background: 'linear-gradient(to right, rgba(0, 21, 41, 0.94) 0%, rgba(0, 31, 77, 0.86) 45%, rgba(0, 51, 140, 0.45) 100%)' }}
-            ></div>
+        <div className="relative w-full min-h-screen flex flex-col md:flex-row md:items-center overflow-hidden bg-white md:bg-uems-dark">
+            {/* Foto: faixa no topo no celular, fundo inteiro no computador */}
+            <div className="relative h-[300px] md:h-auto md:absolute md:inset-0 shrink-0 overflow-hidden bg-uems-dark">
+                <img src="campus-uems.jpg" alt="" className="absolute inset-0 w-full h-full object-cover object-[50%_45%] md:object-[60%_40%]" />
+                <div className="absolute inset-0 md:hidden" style={{ background: 'linear-gradient(180deg, rgba(0,21,41,0.35) 0%, rgba(0,21,41,0.92) 100%)' }} />
+                <div className="absolute inset-0 hidden md:block" style={{ background: 'linear-gradient(90deg, rgba(0,21,41,0.95) 0%, rgba(0,31,77,0.86) 46%, rgba(0,31,77,0.35) 78%, rgba(0,21,41,0.2) 100%)' }} />
+                <div className="absolute inset-x-0 bottom-0 px-6 pb-7 flex flex-col gap-3 md:hidden">{titulo}</div>
+            </div>
 
             {/* Moldura tipo certificado, cantos de brasão */}
-            <div className="pointer-events-none absolute inset-3 md:inset-6 border border-uems-gold/30 z-10" aria-hidden="true">
+            <div className="pointer-events-none absolute inset-6 border border-uems-gold/35 z-10 hidden md:block" aria-hidden="true">
                 <span className="absolute -top-px -left-px w-6 h-6 border-t-2 border-l-2 border-uems-gold"></span>
                 <span className="absolute -top-px -right-px w-6 h-6 border-t-2 border-r-2 border-uems-gold"></span>
                 <span className="absolute -bottom-px -left-px w-6 h-6 border-b-2 border-l-2 border-uems-gold"></span>
                 <span className="absolute -bottom-px -right-px w-6 h-6 border-b-2 border-r-2 border-uems-gold"></span>
             </div>
 
-            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between w-full max-w-7xl px-6 md:px-12 gap-12 text-left">
-                <div className="text-white w-full max-w-2xl mb-8 md:mb-0">
-                    <span className="text-uems-gold font-serif-boletim italic tracking-wide text-sm md:text-base mb-4 block">
-                        Gestão Estratégica Institucional
-                    </span>
-                    <h1 className="font-serif-boletim text-4xl md:text-6xl font-semibold tracking-tight mb-6 leading-[1.08]">
-                        Plano de Ação<br/><span className="text-blue-100/90">dos Cursos</span>
-                    </h1>
-                    <div className="h-px w-24 bg-uems-gold mb-6"></div>
-                    <p className="text-base md:text-lg text-slate-200 font-normal opacity-95 leading-relaxed max-w-lg">
+            <div className="relative z-10 w-full max-w-7xl mx-auto md:px-12 lg:px-32 flex-1 md:flex-none flex flex-col md:flex-row md:items-center md:justify-between gap-16 text-left">
+                <div className="hidden md:flex flex-col gap-6 max-w-2xl">
+                    {titulo}
+                    <div className="h-px w-24 bg-uems-gold"></div>
+                    <p className="text-lg text-[#D5DCE6] leading-relaxed max-w-lg">
                         Matriz de mitigação de fragilidades organizada por curso, unidade acadêmica e código.
                     </p>
                 </div>
 
-                <div className="relative w-full max-w-md">
-                    <div className="gold-rule bg-white border border-slate-200/80 shadow-2xl rounded-sm pt-7 px-8 pb-8">
-                        <h3 className="font-serif-boletim italic text-uems-dark text-xl font-semibold mb-6 text-center">Acesso ao Sistema</h3>
+                <form onSubmit={handleLogin} noValidate className="gold-rule w-full md:w-[420px] shrink-0 bg-white md:rounded md:shadow-[0_24px_64px_rgba(0,10,25,0.45)] flex-1 md:flex-none px-6 py-7 md:px-9 md:pt-9 md:pb-8 flex flex-col gap-5">
+                    <h2 className="font-serif-boletim italic text-xl md:text-[22px] font-semibold text-uems-dark">Acesso ao sistema</h2>
 
-                        <form onSubmit={handleLogin} className="space-y-5">
-                            <div className="relative group">
-                                <input
-                                    ref={passwordRef}
-                                    type={showPassword ? "text" : "password"}
-                                    value={password}
-                                    onChange={(e) => {
-                                        setPassword(e.target.value);
-                                        setError(false);
-                                    }}
-                                    onKeyUp={(e) => {
-                                        if (e.getModifierState('CapsLock')) {
-                                            setIsCapsOn(true);
-                                        } else {
-                                            setIsCapsOn(false);
-                                        }
-                                    }}
-                                    onKeyDown={(e) => {
-                                        if (e.getModifierState('CapsLock')) {
-                                            setIsCapsOn(true);
-                                        } else {
-                                            setIsCapsOn(false);
-                                        }
-                                    }}
-                                    disabled={isLoading}
-                                    className="input-uems pr-12 text-left text-sm font-normal focus:border-uems-blue focus:ring-2 focus:ring-uems-blue/10"
-                                    placeholder="Senha..."
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    disabled={isLoading}
-                                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-uems-blue transition-colors focus:outline-none disabled:opacity-50"
-                                    title="Mostrar Senha"
-                                >
-                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                </button>
-                            </div>
-
-                            {isCapsOn && (
-                                <p className="text-amber-600 text-xs font-medium text-center flex items-center justify-center gap-1 -mt-3 mb-1">
-                                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                                    Caps Lock ativado
-                                </p>
-                            )}
-
-                            {error && (
-                                <div className="animate-shake">
-                                    <p className="text-red-600 text-xs font-medium text-center py-2 px-3 rounded-md flex items-center justify-center gap-2 bg-red-50 border border-red-200">
-                                        <XCircle className="w-4 h-4 shrink-0" />
-                                        <span>{errorMessage}</span>
-                                    </p>
-                                </div>
-                            )}
-
-                            <button
-                                type="submit"
+                    <div className="flex flex-col gap-2">
+                        <label htmlFor="senha" className="mb-0 text-[13px] font-semibold text-ink normal-case tracking-normal">Senha</label>
+                        <div className="relative flex items-center">
+                            <input
+                                id="senha"
+                                ref={passwordRef}
+                                type={showPassword ? 'text' : 'password'}
+                                autoComplete="current-password"
+                                value={password}
+                                onChange={(e) => { setPassword(e.target.value); setError(false); }}
+                                onKeyUp={atualizarCaps}
+                                onKeyDown={atualizarCaps}
                                 disabled={isLoading}
-                                className="w-full py-3 bg-uems-blue hover:bg-uems-dark text-white font-semibold text-sm rounded-sm transition-colors flex justify-center items-center gap-2 disabled:opacity-70"
+                                aria-invalid={error}
+                                aria-describedby={[isCapsOn ? 'senha-caps' : '', error ? 'senha-erro' : ''].filter(Boolean).join(' ') || undefined}
+                                className={`input-uems h-12 py-0 pr-14 text-[15px]${error ? ' !border-seal-nao-executada' : ''}`}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(v => !v)}
+                                disabled={isLoading}
+                                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                                aria-pressed={showPassword}
+                                className="absolute right-0.5 w-11 h-11 flex items-center justify-center rounded-md text-ink-muted hover:text-uems-blue transition-colors disabled:opacity-50"
                             >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        <span>Autenticando...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>Entrar no Portal</span>
-                                        <LogIn className="w-5 h-5" />
-                                    </>
-                                )}
+                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                             </button>
-                        </form>
+                        </div>
+                        {isCapsOn && (
+                            <span id="senha-caps" className="flex items-center gap-1.5 text-xs font-semibold text-seal-pendente">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Caps Lock está ativado
+                            </span>
+                        )}
                     </div>
-                </div>
+
+                    {error && (
+                        <div className="animate-shake">
+                            <p id="senha-erro" role="alert" className="flex items-center gap-2 px-3 py-2.5 rounded-md border border-[#E9C9CD] bg-seal-nao-executada-bg text-[13px] font-semibold text-seal-nao-executada">
+                                <XCircle className="w-4 h-4 shrink-0" /> {errorMessage}
+                            </p>
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="h-12 rounded-md bg-uems-blue hover:bg-[#002A73] text-white text-[15px] font-semibold flex items-center justify-center gap-2.5 transition-colors disabled:opacity-70"
+                    >
+                        {isLoading ? (
+                            <><Loader2 className="w-5 h-5 animate-spin" /> Entrando…</>
+                        ) : (
+                            <>Entrar <ArrowRight className="w-[18px] h-[18px]" /></>
+                        )}
+                    </button>
+
+                    <p className="pt-4 border-t border-rule text-[13px] leading-relaxed text-ink-muted">
+                        Problemas para entrar? Escreva para <a href="mailto:enade@uems.br" className="text-uems-blue underline underline-offset-2 hover:text-uems-dark">enade@uems.br</a>.
+                    </p>
+                </form>
+            </div>
+
+            <div className="hidden md:block absolute left-12 lg:left-32 bottom-14 z-10 text-xs tracking-wide text-[#B7C4D6]">
+                Universidade Estadual de Mato Grosso do Sul · PROE
             </div>
         </div>
     );
