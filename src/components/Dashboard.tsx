@@ -133,17 +133,34 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
 
     useEffect(() => {
         if (isProe || !onPodeEditarAtualizado) return;
-        const interval = setInterval(async () => {
-            const podeEditar = await checkLiberacao(user.token);
-            if (podeEditar !== null) {
-                if (podeEditar && !podeEditarAnteriorRef.current) {
-                    onShowAlert("Edição liberada", "A PROE liberou a edição/exclusão de um registro do seu curso. Os botões já estão disponíveis na tabela.");
+        // Cada painel aberto consome execuções do Apps Script, que tem limite de execuções
+        // simultâneas: a 8s, com hedge e sem trava, as consultas se empilhavam quando o
+        // Google demorava e atrasavam quem estava gravando. Agora: 30s, uma por vez e só
+        // com a aba visível.
+        let emAndamento = false;
+        const verificar = async () => {
+            if (emAndamento || document.hidden) return;
+            emAndamento = true;
+            try {
+                const podeEditar = await checkLiberacao(user.token);
+                if (podeEditar !== null) {
+                    if (podeEditar && !podeEditarAnteriorRef.current) {
+                        onShowAlert("Edição liberada", "A PROE liberou a edição/exclusão de um registro do seu curso. Os botões já estão disponíveis na tabela.");
+                    }
+                    podeEditarAnteriorRef.current = podeEditar;
+                    onPodeEditarAtualizado(podeEditar);
                 }
-                podeEditarAnteriorRef.current = podeEditar;
-                onPodeEditarAtualizado(podeEditar);
+            } finally {
+                emAndamento = false;
             }
-        }, 8000);
-        return () => clearInterval(interval);
+        };
+        const interval = setInterval(verificar, 30000);
+        const aoVoltar = () => { if (!document.hidden) verificar(); };
+        document.addEventListener('visibilitychange', aoVoltar);
+        return () => {
+            clearInterval(interval);
+            document.removeEventListener('visibilitychange', aoVoltar);
+        };
     }, [isProe, user.token, onPodeEditarAtualizado, onShowAlert]);
 
     const [liberandoCodigoCurso, setLiberandoCodigoCurso] = useState<string | null>(null);

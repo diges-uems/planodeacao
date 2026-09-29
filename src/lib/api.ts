@@ -308,7 +308,7 @@ export async function checkLiberacao(token: string): Promise<boolean | null> {
             method: 'POST',
             body: JSON.stringify({ action: 'check_liberacao', token }),
             headers: { 'Content-Type': 'text/plain' },
-        });
+        }, { hedge: false }); // consulta de fundo: não multiplica carga no Apps Script
         const data = await response.json();
         return data.success === true ? Boolean(data.podeEditar) : null;
     } catch (error) {
