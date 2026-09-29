@@ -110,6 +110,14 @@ async function fetchComRetry(url: string, init?: RequestInit, opcoes?: { hedge?:
     });
 }
 
+// Aquecimento: o primeiro doGet depois de um tempo parado paga a partida a frio do Apps
+// Script. Disparado ao abrir a tela de login, esse custo corre enquanto o usuário digita a
+// senha. Sem token o backend só responde "não autorizado" — nada é lido nem gravado.
+export function aquecerBackend(): void {
+    if (!API_URL) return;
+    fetch(`${API_URL}?aquecer=${Date.now()}`).catch(() => { /* melhor esforço */ });
+}
+
 export async function fetchDashboardData(token: string): Promise<Fragility[] | null> {
     try {
         const response = await fetchComRetry(`${API_URL}?t=${Date.now()}&token=${encodeURIComponent(token)}`, undefined, { hedge: false });
