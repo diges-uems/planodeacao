@@ -10,7 +10,7 @@
   --color-ink-muted: #4B5568;
   --color-rule: #DDE1E8;
 
-  --color-seal-pendente: #B98A2E;
+  --color-seal-pendente: #7A5A12; /* #B98A2E sobre o fundo creme ficava abaixo de 4.5:1 */
   --color-seal-pendente-bg: #FBF3E1;
   --color-seal-concluida: #1F6D46;
   --color-seal-concluida-bg: #E8F3EC;
@@ -146,6 +146,7 @@ body {
     text-transform: uppercase;
     letter-spacing: 0.04em;
     padding: 4px 10px;
+    white-space: nowrap;
     border-radius: 999px;
     border: 1px solid transparent;
   }

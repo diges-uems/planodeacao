@@ -3,7 +3,7 @@ import { fetchDashboardData, deleteFragility, updateFragility, updateResponsavel
 import { generatePdfHtml, sanitizeSearch, formatDateTimeBR, parseResponsaveis, serializeResponsaveis, formatResponsaveisResumo } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
-import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList, Unlock, BellRing } from 'lucide-react';
+import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList, Unlock, BellRing, Info, Check } from 'lucide-react';
 import { ConfirmModal, MissingCoursesModal } from './Modals';
 import { EditModal } from './EditModal';
 import { AcompanhamentoModal } from './AcompanhamentoModal';
@@ -40,12 +40,39 @@ function isFinalizado(row: Fragility) {
     return s === 'Concluída' || s === 'Não executada';
 }
 
+function hojeMeiaNoite() {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return hoje;
+}
+
+type CategoriaPrazo = 'vencidos' | 'proximos' | 'noPrazo' | 'encerrados';
+
+// Encerrado (concluída/não executada) sai da contagem; o resto é classificado só pelo prazo,
+// independente do status declarado ("Em execução" vencido entra em Vencidos).
+function categoriaPrazo(row: Fragility): CategoriaPrazo {
+    if (isFinalizado(row)) return 'encerrados';
+    const fim = parseDate(row.prazo);
+    if (!fim) return 'noPrazo';
+    const dias = Math.round((fim.getTime() - hojeMeiaNoite().getTime()) / DIA_MS);
+    return dias < 0 ? 'vencidos' : dias <= 30 ? 'proximos' : 'noPrazo';
+}
+
+const FILTROS_PRAZO: { id: 'todos' | CategoriaPrazo; rotulo: string; cor?: string }[] = [
+    { id: 'todos', rotulo: 'Todos' },
+    { id: 'vencidos', rotulo: 'Vencidos', cor: 'var(--color-seal-nao-executada)' },
+    { id: 'proximos', rotulo: 'Próximos 30 dias', cor: 'var(--color-seal-pendente)' },
+    { id: 'noPrazo', rotulo: 'No prazo', cor: 'var(--color-seal-aguardando)' },
+    { id: 'encerrados', rotulo: 'Encerrados', cor: 'var(--color-seal-concluida)' },
+];
+
+const BTN_CABECALHO = 'h-9 px-3.5 rounded-md text-[13px] font-semibold flex items-center gap-2 border border-white/25 text-[#E6ECF5] hover:bg-white/10 transition-colors';
+
 // Barra de decurso do prazo: da data da reunião (início do plano) até o prazo final.
 function PrazoBar({ row }: { row: Fragility }) {
     const fim = parseDate(row.prazo);
     if (!fim || isFinalizado(row)) return null;
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
+    const hoje = hojeMeiaNoite();
     const inicio = parseDate(row.dataReuniao);
     const dias = Math.round((fim.getTime() - hoje.getTime()) / DIA_MS);
     const pct = inicio && fim > inicio
@@ -60,11 +87,11 @@ function PrazoBar({ row }: { row: Fragility }) {
         : `Faltam ${dias} dia${dias === 1 ? '' : 's'}`;
 
     return (
-        <div className="mt-1 mb-1.5 max-w-[180px]">
-            <div className="h-1 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Decurso do prazo">
+        <div className="flex flex-col gap-2 max-w-[200px]">
+            <div className="h-1.5 rounded-full bg-[#E6E9EF] overflow-hidden" role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label="Decurso do prazo">
                 <div className="h-full rounded-full" style={{ width: `${pct}%`, background: cor }} />
             </div>
-            <span className="text-[11px] font-medium" style={{ color: cor }}>{texto}</span>
+            <span className="text-xs font-semibold" style={{ color: cor }}>{texto}</span>
         </div>
     );
 }
@@ -251,12 +278,24 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         return filtered;
     }, [data, user, isProe, searchCourse, selectedDimensao, selectedAno, selectedUnit]);
 
-    const paginatedData = filteredData.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
-    const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE) || 1;
+    // Filtro por prazo: só no painel do coordenador; a PROE vê filteredData inteiro.
+    const [filtroPrazo, setFiltroPrazo] = useState<'todos' | CategoriaPrazo>('todos');
+    const contagemPrazo = useMemo(() => {
+        const c: Record<'todos' | CategoriaPrazo, number> = { todos: filteredData.length, vencidos: 0, proximos: 0, noPrazo: 0, encerrados: 0 };
+        filteredData.forEach(d => { c[categoriaPrazo(d)]++; });
+        return c;
+    }, [filteredData]);
+    const dadosVisiveis = useMemo(
+        () => (isProe || filtroPrazo === 'todos') ? filteredData : filteredData.filter(d => categoriaPrazo(d) === filtroPrazo),
+        [filteredData, filtroPrazo, isProe]
+    );
+
+    const paginatedData = dadosVisiveis.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+    const totalPages = Math.ceil(dadosVisiveis.length / ITEMS_PER_PAGE) || 1;
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
-            const allIds = new Set(filteredData.map(i => i._id || `${i.ano}|${i.curso}|${i.fragilidade}`));
+            const allIds = new Set(dadosVisiveis.map(i => i._id || `${i.ano}|${i.curso}|${i.fragilidade}`));
             setSelectedForPdf(allIds);
         } else {
             setSelectedForPdf(new Set());
@@ -468,35 +507,35 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     return (
         <>
             <div className="space-y-6 w-full text-left">
-                <header className="bg-gradient-to-r from-uems-dark to-uems-blue border-b-[3px] border-uems-gold px-6 py-4 sticky top-0 z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 -mx-4 sm:-mx-6 -mt-6 sm:-mt-2 gap-4 shadow-sm">
+                <header className="bg-uems-dark border-b-[3px] border-uems-gold px-6 py-3 sticky top-0 z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 -mx-4 sm:-mx-6 -mt-6 sm:-mt-2 gap-4">
                     <div>
                         <h1 className="font-serif-boletim italic text-xl font-semibold text-white">
                             {isProe ? 'Painel PROE' : user.courseName}
                         </h1>
-                        <span className="text-xs font-medium text-blue-200 uppercase tracking-wide">
+                        <span className="text-[11px] font-semibold text-[#A9BCDD] uppercase tracking-wide">
                             {isProe ? 'Gestão Institucional' : 'Gestão do Curso'}
                         </span>
                     </div>
-                    <div className="flex flex-wrap gap-3">
-                        <button onClick={handleExportPdf} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
+                    <nav aria-label="Ações do painel" className="flex flex-wrap gap-2">
+                        <button onClick={handleExportPdf} className={BTN_CABECALHO}>
                             <FileDown className="w-4 h-4" /> Exportar PDF
                         </button>
-                        <button onClick={loadData} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
+                        <button onClick={loadData} className={BTN_CABECALHO}>
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sincronizar
                         </button>
                         {isProe && (
                             <>
-                                <button onClick={() => { sendTestEmail(user.token); onShowAlert('Sucesso', 'Gatilho de e-mail disparado!'); }} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
+                                <button onClick={() => { sendTestEmail(user.token); onShowAlert('Sucesso', 'Gatilho de e-mail disparado!'); }} className={BTN_CABECALHO}>
                                     <Mail className="w-4 h-4" /> Testar E-mail
                                 </button>
-                                <button onClick={() => setIsAlertaPrazoOpen(true)} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-md text-sm font-medium hover:bg-slate-50 flex items-center gap-2 transition-colors">
+                                <button onClick={() => setIsAlertaPrazoOpen(true)} className={BTN_CABECALHO}>
                                     <BellRing className="w-4 h-4" /> Alertar Prazo
                                 </button>
-                                <a 
-                                    href="https://docs.google.com/spreadsheets/d/1Ewz43i-0necjcF9q9RniuJDIqruTFHPg62kLh46XZis/edit?gid=1841943679#gid=1841943679" 
-                                    target="_blank" 
+                                <a
+                                    href="https://docs.google.com/spreadsheets/d/1Ewz43i-0necjcF9q9RniuJDIqruTFHPg62kLh46XZis/edit?gid=1841943679#gid=1841943679"
+                                    target="_blank"
                                     rel="noopener noreferrer"
-                                    className="border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 px-4 py-2.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
+                                    className={BTN_CABECALHO}
                                 >
                                     <Database className="w-4 h-4" />
                                     Abrir Planilha
@@ -504,14 +543,14 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                             </>
                         )}
                         {!isProe && onNewRecord && (
-                            <button onClick={onNewRecord} className="px-4 py-2 bg-white text-uems-blue rounded-md text-sm font-semibold hover:bg-slate-50 flex items-center gap-2 transition-colors">
-                                <Plus className="w-4 h-4" /> Nova
+                            <button onClick={onNewRecord} className="h-9 px-3.5 bg-white text-uems-dark rounded-md text-[13px] font-semibold hover:bg-slate-100 flex items-center gap-2 transition-colors">
+                                <Plus className="w-4 h-4" /> Nova fragilidade
                             </button>
                         )}
-                        <button onClick={onLogout} className="px-4 py-2 bg-white border border-slate-200 text-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200 rounded-md text-sm font-medium transition-colors flex items-center gap-2">
+                        <button onClick={onLogout} className={BTN_CABECALHO}>
                             <LogOut className="w-4 h-4" /> Sair
                         </button>
-                    </div>
+                    </nav>
                 </header>
 
                 {isProe && (
@@ -584,6 +623,55 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                     </div>
                 )}
                 
+                {!isProe && (
+                    <div className="flex flex-col gap-5">
+                        <div className="flex flex-wrap items-end justify-between gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <h2 className="font-serif-boletim text-[28px] font-semibold text-uems-dark leading-tight">Plano de ação</h2>
+                                <p className="text-sm text-ink-muted">
+                                    {filteredData.length} {filteredData.length === 1 ? 'registro' : 'registros'}, do prazo mais próximo ao mais distante
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2.5">
+                                <label htmlFor="filtro-ano" className="!mb-0">Ano</label>
+                                <select id="filtro-ano" value={selectedAno} onChange={e => { setSelectedAno(e.target.value); setCurrentPage(1); }} className="input-uems text-[13px] h-9 py-0 px-3 w-auto min-w-[160px]">
+                                    <option value="">Todos os anos</option>
+                                    {filterAnos.map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div role="group" aria-label="Filtrar por prazo" className="flex flex-wrap gap-2">
+                                {FILTROS_PRAZO.map(f => {
+                                    const ativo = filtroPrazo === f.id;
+                                    return (
+                                        <button
+                                            key={f.id}
+                                            type="button"
+                                            aria-pressed={ativo}
+                                            onClick={() => { setFiltroPrazo(f.id); setCurrentPage(1); }}
+                                            className={`h-9 px-3.5 rounded-md border text-[13px] font-semibold flex items-center gap-2 transition-colors ${ativo ? 'bg-white border-uems-blue text-uems-blue' : 'bg-transparent border-rule text-ink-muted hover:border-[#B9C0CC] hover:text-ink'}`}
+                                        >
+                                            {f.cor && <span className="w-2 h-2 rounded-full" style={{ background: f.cor }} />}
+                                            {f.rotulo}
+                                            <span className="font-mono font-medium">{contagemPrazo[f.id]}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <p className="text-[13px] text-ink-muted flex items-center gap-2 max-w-xl">
+                                <Info className="w-4 h-4 text-uems-blue shrink-0" />
+                                {user.podeEditar ? (
+                                    <span>A PROE liberou uma edição ou exclusão. Use os botões na linha do registro.</span>
+                                ) : (
+                                    <span>Para corrigir ou excluir, peça liberação a <a href="mailto:enade@uems.br" className="text-uems-blue underline underline-offset-2">enade@uems.br</a> com o ID do registro. Vale para uma alteração.</span>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {isProe && (
                 <div className="flex flex-wrap gap-4 items-center">
                     <select value={selectedAno} onChange={e => { setSelectedAno(e.target.value); setCurrentPage(1); }} className="input-uems text-sm py-2 px-3 w-auto min-w-[140px]">
                         <option value="">Todos os Anos</option>
@@ -636,23 +724,120 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                         </>
                     )}
                 </div>
-            </div>
-
-                {!isProe && (
-                    <div className="mt-6 mb-2 text-sm text-slate-500 bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-start gap-3">
-                        <AlertTriangle className="w-5 h-5 text-uems-blue shrink-0 mt-0.5" />
-                        <p>
-                            {user.podeEditar ? (
-                                <>A PROE liberou a edição e exclusão de registros para o seu curso. Utilize os botões na tabela abaixo.</>
-                            ) : (
-                                <>Para corrigir ou excluir um registro, envie um e-mail para <strong className="font-semibold text-slate-700">enade@uems.br</strong> informando o <strong>ID do Registro</strong> e solicitando a liberação. Assim que a PROE liberar, os botões de editar/excluir aparecerão aqui automaticamente. Lembre-se: a liberação vale para uma única alteração.</>
-                            )}
-                        </p>
-                    </div>
                 )}
+            </div>
 
             <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mt-8 flex flex-col">
                 <div className="overflow-x-auto no-scrollbar flex-1 relative min-h-[400px]">
+                    {!isProe ? (
+                    <table className="app-table text-left w-full min-w-[900px]">
+                        <thead>
+                            <tr>
+                                <th className="text-center w-12">
+                                    <input type="checkbox" aria-label="Selecionar todos" className="w-4 h-4 cursor-pointer accent-uems-blue" onChange={handleSelectAll} checked={dadosVisiveis.length > 0 && selectedForPdf.size === dadosVisiveis.length} />
+                                </th>
+                                <th className="w-[184px]">Status</th>
+                                <th>Fragilidade e ação</th>
+                                <th className="w-[190px]">Prazo</th>
+                                <th className="w-[230px]">Responsáveis</th>
+                                <th className="w-[190px] text-right">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <tr key={i} style={{ opacity: 1 - i * 0.12 }}>
+                                        {[4, 28, 110, 40, 48, 30].map((w, j) => (
+                                            <td key={j} className="!py-5">
+                                                <div style={{ height: '12px', width: `${w * 2}px`, maxWidth: '100%', borderRadius: '6px', background: 'linear-gradient(90deg, #f1f5f9 25%, #e8edf2 50%, #f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s ease-in-out infinite', animationDelay: `${i * 0.07}s` }} />
+                                            </td>
+                                        ))}
+                                    </tr>
+                                ))
+                            ) : paginatedData.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="!py-24 text-center">
+                                        <span className="text-slate-600 font-semibold text-lg">
+                                            {filteredData.length === 0 ? 'Nenhum registro encontrado' : 'Nenhum registro neste filtro'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            ) : paginatedData.map(row => {
+                                const uid = row._id || `${row.ano}|${row.curso}|${row.fragilidade}`;
+                                const isChecked = selectedForPdf.has(uid);
+                                const prazoDisplay = /^\d{4}-\d{2}-\d{2}$/.test(row.prazo || '') ? (row.prazo || '').split('-').reverse().join('/') : row.prazo;
+                                const responsaveis = parseResponsaveis(row.responsavel).filter(r => r.nome.trim());
+                                const feitos = responsaveis.filter(r => r.feito).length;
+                                const encerrado = isFinalizado(row);
+                                return (
+                                    <tr key={uid} className={isChecked ? 'bg-slate-50' : ''}>
+                                        <td className="text-center !py-[18px]">
+                                            <input type="checkbox" aria-label={`Selecionar registro ${row.id ? '#' + row.id : row.fragilidade}`} className="w-4 h-4 cursor-pointer accent-uems-blue mt-1" checked={isChecked} onChange={() => handleToggleSelect(uid)} />
+                                        </td>
+                                        <td className="!py-[18px]">{renderStatusBadge(row)}</td>
+                                        <td className="!py-[18px]">
+                                            <div className="flex flex-col gap-1.5 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {row.id && <span className="font-mono text-[11px] font-medium text-ink-muted bg-[#EEF0F4] px-1.5 py-0.5 rounded">#{row.id}</span>}
+                                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{row.tipo}</span>
+                                                </div>
+                                                <button onClick={() => setItemToView(row)} className="text-left text-[15px] font-semibold leading-snug text-uems-blue hover:underline focus:outline-none focus-visible:underline">
+                                                    {row.fragilidade}
+                                                </button>
+                                                <span className="text-[13px] leading-relaxed text-ink-muted">{row.acao}</span>
+                                            </div>
+                                        </td>
+                                        <td className="!py-[18px]">
+                                            <div className="flex flex-col gap-2">
+                                                <span className={`font-mono text-[13px] ${encerrado ? 'text-ink-muted' : ''}`}>{prazoDisplay || '—'}</span>
+                                                {encerrado
+                                                    ? <span className="text-xs text-ink-muted">Sem contagem: {(getStatus(row) || '').toLowerCase()}</span>
+                                                    : <PrazoBar row={row} />}
+                                            </div>
+                                        </td>
+                                        <td className="!py-[18px]">
+                                            {responsaveis.length > 0 ? (
+                                                <div className="flex flex-col gap-2">
+                                                    <span className={`text-xs ${feitos === responsaveis.length ? 'font-semibold text-seal-concluida' : 'text-ink-muted'}`}>
+                                                        {feitos} de {responsaveis.length} concluíram
+                                                    </span>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {responsaveis.slice(0, 3).map((r, i) => (
+                                                            <span key={i} title={r.nome} className={`inline-flex items-center gap-1 h-6 px-2 rounded-full border text-xs font-medium max-w-[200px] truncate ${r.feito ? 'bg-seal-concluida-bg border-[#CFE5D8] text-seal-concluida' : 'bg-white border-rule text-ink'}`}>
+                                                                {r.feito && <Check className="w-3 h-3 shrink-0" />}
+                                                                <span className="truncate">{r.nome}</span>
+                                                            </span>
+                                                        ))}
+                                                        {responsaveis.length > 3 && (
+                                                            <span className="inline-flex items-center h-6 px-2 rounded-full border border-rule bg-white text-xs font-medium text-ink-muted">+{responsaveis.length - 3}</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : <span className="text-xs text-ink-muted">—</span>}
+                                        </td>
+                                        <td className="!py-[18px]">
+                                            <div className="flex items-center justify-end gap-1">
+                                                <button onClick={() => setItemToAcompanhar(row)} className="h-9 px-3.5 rounded-md border border-rule bg-white text-[13px] font-semibold text-ink hover:border-[#B9C0CC] flex items-center gap-2 transition-colors">
+                                                    <ClipboardList className="w-4 h-4" /> Acompanhar
+                                                </button>
+                                                {user.podeEditar && (
+                                                    <>
+                                                        <button onClick={() => setItemToEdit(row)} aria-label="Editar registro" title="Editar" className="w-9 h-9 rounded-md flex items-center justify-center text-ink-muted hover:text-ink hover:bg-slate-100 transition-colors">
+                                                            <Edit2 className="w-4 h-4" />
+                                                        </button>
+                                                        <button onClick={() => setItemToDelete(row)} aria-label="Excluir registro" title="Excluir" className="w-9 h-9 rounded-md flex items-center justify-center text-ink-muted hover:text-seal-nao-executada hover:bg-seal-nao-executada-bg transition-colors">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                    ) : (
                     <table className="app-table text-left w-full min-w-[1200px]">
                         <thead>
                             <tr>
@@ -801,12 +986,13 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                             </tbody>
                         )}
                     </table>
+                    )}
                 </div>
 
-                {filteredData.length > ITEMS_PER_PAGE && (
+                {dadosVisiveis.length > ITEMS_PER_PAGE && (
                     <div className="border-t border-slate-100 px-6 py-4 bg-white flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto">
                         <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">
-                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredData.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)} de <span className="text-slate-800">{filteredData.length}</span>
+                            Mostrando {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, dadosVisiveis.length)}–{Math.min(currentPage * ITEMS_PER_PAGE, dadosVisiveis.length)} de <span className="text-slate-800">{dadosVisiveis.length}</span>
                         </span>
                         <div className="flex items-center gap-2">
                             <button 

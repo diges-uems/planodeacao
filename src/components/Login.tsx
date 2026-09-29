@@ -54,7 +54,7 @@ export function Login({ onLogin }: LoginProps) {
     return (
         <div className="flex items-center justify-center w-full min-h-screen relative overflow-hidden p-4 md:p-8">
             <img
-                src="https://www.uems.br/anexos/imagens/conteudo/uems_imagens_2023-09-22_13-02-19.png"
+                src="campus-uems.jpg"
                 className="absolute inset-0 w-full h-full object-cover"
                 alt="Fundo UEMS"
             />
