@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Login } from './components/Login';
 import { ActionForm } from './components/ActionForm';
 import { Dashboard } from './components/Dashboard';
@@ -10,9 +10,34 @@ import { submitCart, registerCourseEmail } from './lib/api';
 import { LogOut, LayoutDashboard } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
+// Sessão sobrevive a recarregar a página, mas não a fechar a aba (sessionStorage) nem a
+// mais de INATIVIDADE_MAX_MS sem interação — aí é preciso logar de novo.
+const SESSAO_KEY = 'sessao';
+const INATIVIDADE_MAX_MS = 30 * 60 * 1000;
+
+interface SessaoSalva { user: User; view: ViewState; ultimaAtividade: number }
+
+function lerSessao(): SessaoSalva | null {
+    try {
+        const s: SessaoSalva | null = JSON.parse(sessionStorage.getItem(SESSAO_KEY) || 'null');
+        if (s && Date.now() - s.ultimaAtividade <= INATIVIDADE_MAX_MS) return s;
+        sessionStorage.removeItem(SESSAO_KEY);
+    } catch { /* storage indisponível: segue sem sessão */ }
+    return null;
+}
+
+function salvarSessao(s: SessaoSalva | null) {
+    try {
+        if (s) sessionStorage.setItem(SESSAO_KEY, JSON.stringify(s));
+        else sessionStorage.removeItem(SESSAO_KEY);
+    } catch { /* storage indisponível */ }
+}
+
 export default function App() {
-    const [view, setView] = useState<ViewState>('login');
-    const [user, setUser] = useState<User | null>(null);
+    const [sessaoInicial] = useState(lerSessao);
+    const [view, setView] = useState<ViewState>(sessaoInicial?.view ?? 'login');
+    const [user, setUser] = useState<User | null>(sessaoInicial?.user ?? null);
+    const ultimaAtividade = useRef(Date.now());
     const [cart, setCart] = useState<Fragility[]>([]);
     
     // Modal states
@@ -51,6 +76,29 @@ export default function App() {
         setView('login');
         setCart([]);
     };
+
+    useEffect(() => {
+        salvarSessao(user && view !== 'login' ? { user, view, ultimaAtividade: ultimaAtividade.current } : null);
+    }, [user, view]);
+
+    // Atividade renova a sessão; voltar depois de muito tempo parado exige novo login.
+    useEffect(() => {
+        if (!user) return;
+        const onAtividade = () => {
+            const agora = Date.now();
+            if (agora - ultimaAtividade.current > INATIVIDADE_MAX_MS) {
+                handleLogout();
+                setAlertState({ title: 'Sessão expirada', message: 'Sua sessão expirou por inatividade. Faça login novamente.' });
+                return;
+            }
+            if (agora - ultimaAtividade.current < 60_000) return; // grava no máximo 1x/min
+            ultimaAtividade.current = agora;
+            salvarSessao({ user, view, ultimaAtividade: agora });
+        };
+        const eventos = ['pointerdown', 'keydown', 'visibilitychange'] as const;
+        eventos.forEach(ev => document.addEventListener(ev, onAtividade));
+        return () => eventos.forEach(ev => document.removeEventListener(ev, onAtividade));
+    }, [user, view]);
 
     const handleSaveToCart = (item: Fragility) => {
         setCart(prev => [...prev, item]);
