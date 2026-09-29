@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { fetchDashboardData, deleteFragility, updateFragility, updateResponsavel, sendTestEmail, getDeadlines, saveDeadlines, addAcompanhamento, checkLiberacao, liberarEdicao, enviarAlertaPrazo, type CursoDestinatario } from '../lib/api';
-import { generatePdfHtml, sanitizeSearch, formatDateTimeBR, parseResponsaveis, serializeResponsaveis, formatResponsaveisResumo } from '../lib/utils';
+import { generatePdfHtml, sanitizeSearch, parseResponsaveis, serializeResponsaveis } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
-import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Target, AlertTriangle, Clock, MapPin, Database, SearchX, Mail, ClipboardList, Unlock, BellRing, Info, Check } from 'lucide-react';
+import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Database, Mail, ClipboardList, Unlock, BellRing, Info, Check, MoreHorizontal, ArrowRight } from 'lucide-react';
 import { ConfirmModal, MissingCoursesModal } from './Modals';
 import { EditModal } from './EditModal';
 import { AcompanhamentoModal } from './AcompanhamentoModal';
@@ -120,6 +120,18 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const deadlineSaveTimer = useRef<NodeJS.Timeout | null>(null);
     
     const [showMissingCoursesModal, setShowMissingCoursesModal] = useState(false);
+
+    // Menu "Mais" do cabeçalho da PROE: fecha com clique fora ou Esc.
+    const [menuMaisAberto, setMenuMaisAberto] = useState(false);
+    const menuMaisRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!menuMaisAberto) return;
+        const fora = (e: MouseEvent) => { if (!menuMaisRef.current?.contains(e.target as Node)) setMenuMaisAberto(false); };
+        const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuMaisAberto(false); };
+        document.addEventListener('mousedown', fora);
+        document.addEventListener('keydown', esc);
+        return () => { document.removeEventListener('mousedown', fora); document.removeEventListener('keydown', esc); };
+    }, [menuMaisAberto]);
 
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 25;
@@ -424,16 +436,6 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         return '3px solid transparent';
     };
 
-    const renderConceito = (conceito: string) => {
-        const texto = String(conceito ?? '').trim();
-        if (!texto) return <span className="text-sm font-normal text-slate-700">N/A</span>;
-        const val = parseInt(texto);
-        if (!isNaN(val) && String(val) === texto) {
-            return <span className="text-sm font-normal text-slate-700">NOTA: {texto}</span>;
-        }
-        return <span className="text-sm font-normal text-slate-700">{texto}</span>;
-    };
-
     const handleDeadlineChange = (unit: string, value: string) => {
         const updated = { ...proeDeadlines, [unit]: value };
         setProeDeadlines(updated);
@@ -500,7 +502,8 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
         if (selectedUnit) {
             baseCourses = baseCourses.filter(c => c.includes(`- ${selectedUnit}`));
         }
-        return baseCourses.filter(c => !submitted.has(c));
+        // userCourses vem como "código||nome"; os registros guardam só o nome em `curso`.
+        return baseCourses.filter(c => !submitted.has(c.split('||')[1] ?? c));
     }, [filteredData, selectedUnit, userCourses]);
 
     return (
@@ -516,6 +519,11 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                         </span>
                     </div>
                     <nav aria-label="Ações do painel" className="flex flex-wrap gap-2">
+                        {isProe && (
+                            <button onClick={() => setIsAlertaPrazoOpen(true)} className={BTN_CABECALHO}>
+                                <BellRing className="w-4 h-4" /> Alertar prazo
+                            </button>
+                        )}
                         <button onClick={handleExportPdf} className={BTN_CABECALHO}>
                             <FileDown className="w-4 h-4" /> Exportar PDF
                         </button>
@@ -523,23 +531,32 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sincronizar
                         </button>
                         {isProe && (
-                            <>
-                                <button onClick={() => { sendTestEmail(user.token); onShowAlert('Sucesso', 'Gatilho de e-mail disparado!'); }} className={BTN_CABECALHO}>
-                                    <Mail className="w-4 h-4" /> Testar E-mail
+                            <div ref={menuMaisRef} className="relative">
+                                <button onClick={() => setMenuMaisAberto(v => !v)} aria-haspopup="menu" aria-expanded={menuMaisAberto} className={BTN_CABECALHO}>
+                                    <MoreHorizontal className="w-4 h-4" /> Mais
                                 </button>
-                                <button onClick={() => setIsAlertaPrazoOpen(true)} className={BTN_CABECALHO}>
-                                    <BellRing className="w-4 h-4" /> Alertar Prazo
-                                </button>
-                                <a
-                                    href="https://docs.google.com/spreadsheets/d/1Ewz43i-0necjcF9q9RniuJDIqruTFHPg62kLh46XZis/edit?gid=1841943679#gid=1841943679"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={BTN_CABECALHO}
-                                >
-                                    <Database className="w-4 h-4" />
-                                    Abrir Planilha
-                                </a>
-                            </>
+                                {menuMaisAberto && (
+                                    <div role="menu" className="absolute right-0 top-full mt-2 w-56 bg-white border border-rule rounded-md shadow-lg py-1 z-40">
+                                        <button
+                                            role="menuitem"
+                                            onClick={() => { setMenuMaisAberto(false); sendTestEmail(user.token); onShowAlert('Sucesso', 'Gatilho de e-mail disparado!'); }}
+                                            className="w-full h-10 px-3 flex items-center gap-2.5 text-[13px] font-medium text-ink hover:bg-slate-50 text-left"
+                                        >
+                                            <Mail className="w-4 h-4 text-ink-muted" /> Testar e-mail
+                                        </button>
+                                        <a
+                                            role="menuitem"
+                                            href="https://docs.google.com/spreadsheets/d/1Ewz43i-0necjcF9q9RniuJDIqruTFHPg62kLh46XZis/edit?gid=1841943679#gid=1841943679"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={() => setMenuMaisAberto(false)}
+                                            className="w-full h-10 px-3 flex items-center gap-2.5 text-[13px] font-medium text-ink hover:bg-slate-50"
+                                        >
+                                            <Database className="w-4 h-4 text-ink-muted" /> Abrir planilha
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
                         )}
                         {!isProe && onNewRecord && (
                             <button onClick={onNewRecord} className="h-9 px-3.5 bg-white text-uems-dark rounded-md text-[13px] font-semibold hover:bg-slate-100 flex items-center gap-2 transition-colors">
@@ -553,71 +570,70 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 </header>
 
                 {isProe && (
-                    <div className="mb-8 space-y-6">
-                        <div className="flex flex-wrap items-center gap-4 p-0 w-max max-w-full text-sm">
-                            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Prazo Limite (Interno):</label>
-                            <select 
-                                value={deadlineUnit} 
-                                onChange={(e) => setDeadlineUnit(e.target.value)}
-                                className="input-uems text-sm py-2 px-3 w-auto min-w-[200px]"
-                            >
-                                <option value="">Selecione uma Unidade...</option>
-                                {availableUnits.map(u => <option key={u} value={u}>{u}</option>)}
-                            </select>
-                            {deadlineUnit && (
-                                <input 
-                                    type="date" 
-                                    value={proeDeadlines[deadlineUnit] || ''} 
-                                    onChange={(e) => handleDeadlineChange(deadlineUnit, e.target.value)}
-                                    className="input-uems text-sm py-2 px-3 w-auto"
-                                />
-                            )}
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div className="bg-white border border-slate-200 rounded-lg p-5">
-                                <div className="text-2xl font-semibold text-slate-800 font-mono">{filteredData.length}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Total Registros</div>
+                    <div className="flex flex-col gap-6">
+                        <div className="flex flex-wrap items-end justify-between gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <h2 className="font-serif-boletim text-[28px] font-semibold text-uems-dark leading-tight">Visão geral</h2>
+                                <p className="text-sm text-ink-muted">Fragilidades e planos de ação registrados pelos cursos</p>
                             </div>
-                            <div className="bg-white border border-slate-200 rounded-lg p-5">
-                                <div className="text-2xl font-semibold text-slate-800 font-mono">{criticalItems}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Críticos (1 e 2)</div>
-                            </div>
-                            <div 
-                                onClick={() => setShowMissingCoursesModal(true)}
-                                className="bg-white border border-slate-200 rounded-lg p-5 cursor-pointer hover:border-slate-300 transition-colors"
-                            >
-                                <div className="text-2xl font-semibold text-slate-800 font-mono">{missingCoursesList.length}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Não Avaliados</div>
-                            </div>
-                            <div className="bg-white border border-slate-200 rounded-lg p-5">
-                                <div className="text-2xl font-semibold text-slate-800 font-mono">{uniqueCoursesSet}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1">Cursos Avaliados</div>
+                            <div className="flex flex-wrap items-center gap-2.5">
+                                <label htmlFor="prazo-unidade" className="mb-0">Prazo interno</label>
+                                <select
+                                    id="prazo-unidade"
+                                    value={deadlineUnit}
+                                    onChange={(e) => setDeadlineUnit(e.target.value)}
+                                    className="input-uems text-[13px] h-10 py-0 px-3 w-auto min-w-[200px]"
+                                >
+                                    <option value="">Selecione a unidade</option>
+                                    {availableUnits.map(u => <option key={u} value={u}>{u}</option>)}
+                                </select>
+                                {deadlineUnit && (
+                                    <input
+                                        type="date"
+                                        aria-label={`Prazo interno de ${deadlineUnit}`}
+                                        value={proeDeadlines[deadlineUnit] || ''}
+                                        onChange={(e) => handleDeadlineChange(deadlineUnit, e.target.value)}
+                                        className="input-uems text-[13px] h-10 py-0 px-3 w-auto"
+                                    />
+                                )}
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between">
-                                <div className="text-2xl font-semibold text-slate-800 font-mono">{dim1Count}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1 flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#00338C' }} />
-                                    Didático-Pedagógica
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1fr] gap-4">
+                            <div className="bg-uems-dark rounded-lg px-6 py-5 flex items-center justify-between gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-[#A9BCDD]">Cursos sem registro</span>
+                                    <span className="font-mono text-4xl font-medium text-white leading-none">{missingCoursesList.length}</span>
                                 </div>
+                                <button onClick={() => setShowMissingCoursesModal(true)} className="h-10 px-4 rounded-md bg-uems-gold hover:bg-[#D6B85E] text-uems-dark text-[13px] font-semibold flex items-center gap-2 transition-colors shrink-0">
+                                    Ver cursos <ArrowRight className="w-4 h-4" />
+                                </button>
                             </div>
-                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between">
-                                <div className="text-2xl font-semibold text-slate-800 font-mono">{dim2Count}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1 flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#7F77DD' }} />
-                                    Corpo Docente
+                            {[
+                                { rotulo: 'Registros', valor: filteredData.length },
+                                { rotulo: 'Cursos com registro', valor: uniqueCoursesSet },
+                                { rotulo: 'Críticos (nota 1 e 2)', valor: criticalItems },
+                            ].map(k => (
+                                <div key={k.rotulo} className="bg-white border border-rule rounded-lg px-6 py-5 flex flex-col gap-1.5">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{k.rotulo}</span>
+                                    <span className="font-mono text-[28px] font-medium text-ink leading-none">{k.valor}</span>
                                 </div>
-                            </div>
-                            <div className="bg-white border border-slate-200 rounded-lg p-5 flex flex-col justify-between">
-                                <div className="text-2xl font-semibold text-slate-800 font-mono">{dim3Count}</div>
-                                <div className="text-xs font-medium text-slate-500 uppercase tracking-wide mt-1 flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: '#EF9F27' }} />
-                                    Infraestrutura
-                                </div>
-                            </div>
+                            ))}
+                        </div>
+
+                        <div className="bg-white border border-rule rounded-lg px-6 py-4 flex flex-wrap items-center gap-x-10 gap-y-3">
+                            <span className="font-serif-boletim italic text-[13px] font-semibold text-uems-gold-dark">Por dimensão</span>
+                            {[
+                                { rotulo: 'Didático-pedagógica', valor: dim1Count, cor: '#00338C' },
+                                { rotulo: 'Corpo docente', valor: dim2Count, cor: '#7F77DD' },
+                                { rotulo: 'Infraestrutura', valor: dim3Count, cor: '#EF9F27' },
+                            ].map(d => (
+                                <span key={d.rotulo} className="flex items-center gap-2.5 text-sm text-ink">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.cor }} />
+                                    {d.rotulo}
+                                    <span className="font-mono font-medium">{d.valor}</span>
+                                </span>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -727,7 +743,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
             </div>
 
             <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mt-8 flex flex-col">
-                <div className="overflow-x-auto no-scrollbar flex-1 relative min-h-[400px]">
+                <div className="overflow-x-auto flex-1 relative min-h-[400px]">
                     {!isProe ? (
                     <table className="app-table text-left w-full min-w-[900px]">
                         <thead>
@@ -837,153 +853,91 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                         </tbody>
                     </table>
                     ) : (
-                    <table className="app-table text-left w-full min-w-[1200px]">
+                    <table className="app-table text-left w-full min-w-[1000px]">
                         <thead>
                             <tr>
-                                <th className="text-center w-14">
-                                    <input type="checkbox" className="w-4 h-4 cursor-pointer" onChange={handleSelectAll} checked={filteredData.length > 0 && selectedForPdf.size === filteredData.length} />
+                                <th className="text-center w-12">
+                                    <input type="checkbox" aria-label="Selecionar todos" className="w-4 h-4 cursor-pointer accent-uems-blue" onChange={handleSelectAll} checked={dadosVisiveis.length > 0 && selectedForPdf.size === dadosVisiveis.length} />
                                 </th>
-                                <th className="w-[8%] text-center">Status</th>
-                                {isProe && <th className="w-[12%]">Curso Institucional</th>}
-                                <th className="w-[7%]">Ano Ref</th>
-                                <th className="w-[16%]">Dimensão</th>
-                                <th className="w-[18%]">Plano de Ação</th>
-                                <th className="w-[11%]">Fonte & Conceito</th>
-                                <th className="w-[11%]">Execução / Resp.</th>
-                                <th className="w-[11%]">Recursos Alocados</th>
-                                <th className="w-[13%]">Comprovações</th>
-                                <th className="w-[8%] text-center">Ações</th>
+                                <th className="w-[184px]">Status</th>
+                                <th className="w-[200px]">Curso</th>
+                                <th>Fragilidade e ação</th>
+                                <th className="w-[190px]">Prazo</th>
+                                <th className="w-[170px] text-right">Ações</th>
                             </tr>
                         </thead>
-                        
-                        {loading ? (
-                            <tbody>
-                                {Array.from({ length: 7 }).map((_, i) => (
-                                    <tr key={i} style={{ opacity: 1 - i * 0.1 }}>
-                                        {[16, 8, 28, 20, 28, 16, 12, 12, 12, 12, 8].map((w, j) => (
-                                            <td key={j} style={{ padding: '10px 14px', borderBottom: '1px solid #f1f5f9' }}>
-                                                <div
-                                                    style={{
-                                                        height: '12px',
-                                                        width: `${w * 4}px`,
-                                                        maxWidth: '100%',
-                                                        borderRadius: '6px',
-                                                        background: 'linear-gradient(90deg, #f1f5f9 25%, #e8edf2 50%, #f1f5f9 75%)',
-                                                        backgroundSize: '200% 100%',
-                                                        animation: `shimmer 1.4s ease-in-out infinite`,
-                                                        animationDelay: `${i * 0.07}s`
-                                                    }}
-                                                />
+                        <tbody>
+                            {loading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <tr key={i} style={{ opacity: 1 - i * 0.12 }}>
+                                        {[4, 28, 40, 110, 40, 30].map((w, j) => (
+                                            <td key={j} className="!py-5">
+                                                <div style={{ height: '12px', width: `${w * 2}px`, maxWidth: '100%', borderRadius: '6px', background: 'linear-gradient(90deg, #f1f5f9 25%, #e8edf2 50%, #f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s ease-in-out infinite', animationDelay: `${i * 0.07}s` }} />
                                             </td>
                                         ))}
                                     </tr>
-                                ))}
-                            </tbody>
-                        ) : paginatedData.length === 0 ? (
-                            <tbody>
+                                ))
+                            ) : paginatedData.length === 0 ? (
                                 <tr>
-                                    <td colSpan={11} className="p-32 text-center">
-                                        <div className="flex flex-col items-center gap-3">
-                                            <span className="text-slate-600 font-semibold text-lg">Nenhum registro encontrado</span>
-                                        </div>
+                                    <td colSpan={6} className="!py-24 text-center">
+                                        <span className="text-slate-600 font-semibold text-lg">Nenhum registro encontrado</span>
                                     </td>
                                 </tr>
-                            </tbody>
-                        ) : (
-                            <tbody>
-                                {paginatedData.map((row, idx) => {
-                                    const uid = row._id || `${row.ano}|${row.curso}|${row.fragilidade}`;
-                                    const isChecked = selectedForPdf.has(uid);
-                                    
-                                    const isISODate = (val: string) => /^\d{4}-\d{2}-\d{2}$/.test(val);
-                                    const prazoDisplay = isISODate(row.prazo || '') ? (row.prazo || '').split('-').reverse().join('/') : row.prazo;
-                                    
-                                    return (
-                                        <tr key={uid} className={isChecked ? 'bg-slate-50' : ''}>
-                                            <td className="text-center">
-                                                <input type="checkbox" className="w-4 h-4 cursor-pointer" checked={isChecked} onChange={() => handleToggleSelect(uid)} />
-                                            </td>
-                                            <td className="text-center">
-                                                {renderStatusBadge(row)}
-                                            </td>
-                                            {isProe && <td className="font-semibold text-slate-900">{row.curso}</td>}
-                                            <td className="text-slate-600 font-mono text-sm">{row.ano}</td>
-                                            <td>
-                                                {row.id && (
-                                                    <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded mb-1 inline-block">
-                                                        #{row.id}
-                                                    </span>
-                                                )}
-                                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">{row.tipo}</span>
-                                                <button 
-                                                    onClick={() => setItemToView(row)}
-                                                    className="text-sm font-medium text-uems-blue hover:underline text-left cursor-pointer focus:outline-none"
-                                                >
+                            ) : paginatedData.map(row => {
+                                const uid = row._id || `${row.ano}|${row.curso}|${row.fragilidade}`;
+                                const isChecked = selectedForPdf.has(uid);
+                                const prazoDisplay = /^\d{4}-\d{2}-\d{2}$/.test(row.prazo || '') ? (row.prazo || '').split('-').reverse().join('/') : row.prazo;
+                                const encerrado = isFinalizado(row);
+                                const liberando = liberandoCodigoCurso === row.codigoCurso;
+                                return (
+                                    <tr key={uid} className={isChecked ? 'bg-slate-50' : ''}>
+                                        <td className="text-center !py-[18px]">
+                                            <input type="checkbox" aria-label={`Selecionar registro ${row.id ? '#' + row.id : row.fragilidade}`} className="w-4 h-4 cursor-pointer accent-uems-blue mt-1" checked={isChecked} onChange={() => handleToggleSelect(uid)} />
+                                        </td>
+                                        <td className="!py-[18px]">{renderStatusBadge(row)}</td>
+                                        <td className="!py-[18px]">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="text-sm font-semibold text-ink leading-snug">{row.curso}</span>
+                                                <span className="font-mono text-xs text-ink-muted">{row.ano}</span>
+                                            </div>
+                                        </td>
+                                        <td className="!py-[18px]">
+                                            <div className="flex flex-col gap-1.5 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    {row.id && <span className="font-mono text-[11px] font-medium text-ink-muted bg-[#EEF0F4] px-1.5 py-0.5 rounded">#{row.id}</span>}
+                                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{row.tipo}</span>
+                                                </div>
+                                                <button onClick={() => setItemToView(row)} className="text-left text-[15px] font-semibold leading-snug text-uems-blue hover:underline focus:outline-none focus-visible:underline">
                                                     {row.fragilidade}
                                                 </button>
-                                            </td>
-                                            <td className="text-sm font-normal text-slate-700">{row.acao}</td>
-                                            <td>
-                                                <span className="text-sm font-medium text-slate-900 block mb-1">{row.fonte}</span>
-                                                {renderConceito(row.conceito)}
-                                            </td>
-                                            <td>
-                                                <div className="text-sm text-slate-700 space-y-1">
-                                                    <div>
-                                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Data Final:</span> {prazoDisplay}
-                                                        {!isProe && <PrazoBar row={row} />}
-                                                    </div>
-                                                    <div>
-                                                        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">RP:</span>{' '}
-                                                        {parseResponsaveis(row.responsavel).map((r, i, arr) => (
-                                                            <span key={i} className={r.feito ? 'text-emerald-600 font-medium' : ''}>
-                                                                {r.feito ? `✓ ${r.nome}` : r.nome}{i < arr.length - 1 ? ', ' : ''}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td className="text-sm font-normal text-slate-700">{row.recursos}</td>
-                                            <td>
-                                                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide block mb-1">Data: {formatDateTimeBR(row.dataReuniao)}</span>
-                                                {row.minutaReuniao && (
-                                                    <span className="text-sm text-uems-blue font-medium break-words block cursor-pointer hover:underline">{row.minutaReuniao}</span>
-                                                )}
-                                            </td>
-                                            <td className="text-center group">
-                                                <div className="flex flex-wrap gap-2 justify-center">
-                                                    {!isProe && (
-                                                        <button onClick={() => setItemToAcompanhar(row)} className="text-slate-400 hover:text-slate-700 bg-transparent hover:bg-transparent transition-colors p-1" title="Acompanhamento">
-                                                            <ClipboardList className="w-[14px] h-[14px]" />
-                                                        </button>
-                                                    )}
-                                                    {isProe && (
-                                                        <button
-                                                            onClick={() => handleLiberarEdicao(row.codigoCurso, row.curso)}
-                                                            disabled={liberandoCodigoCurso === row.codigoCurso}
-                                                            className="text-slate-400 hover:text-emerald-600 bg-transparent hover:bg-transparent transition-colors p-1 disabled:opacity-50"
-                                                            title={`Liberar edição/exclusão para ${row.curso}`}
-                                                        >
-                                                            <Unlock className="w-[14px] h-[14px]" />
-                                                        </button>
-                                                    )}
-                                                    {!isProe && user.podeEditar && (
-                                                        <>
-                                                            <button onClick={() => setItemToEdit(row)} className="text-slate-400 hover:text-slate-700 bg-transparent hover:bg-transparent transition-colors p-1" title="Editar">
-                                                                <Edit2 className="w-[14px] h-[14px]" />
-                                                            </button>
-                                                            <button onClick={() => setItemToDelete(row)} className="text-slate-400 hover:text-red-600 bg-transparent hover:bg-transparent transition-colors p-1" title="Excluir">
-                                                                <Trash2 className="w-[14px] h-[14px]" />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        )}
+                                                <span className="text-[13px] leading-relaxed text-ink-muted">{row.acao}</span>
+                                            </div>
+                                        </td>
+                                        <td className="!py-[18px]">
+                                            <div className="flex flex-col gap-2">
+                                                <span className={`font-mono text-[13px] ${encerrado ? 'text-ink-muted' : ''}`}>{prazoDisplay || '—'}</span>
+                                                {encerrado
+                                                    ? <span className="text-xs text-ink-muted">Sem contagem: {(getStatus(row) || '').toLowerCase()}</span>
+                                                    : <PrazoBar row={row} />}
+                                            </div>
+                                        </td>
+                                        <td className="!py-[18px]">
+                                            <div className="flex justify-end">
+                                                <button
+                                                    onClick={() => handleLiberarEdicao(row.codigoCurso, row.curso)}
+                                                    disabled={liberando}
+                                                    title={`Liberar uma edição ou exclusão para ${row.curso}`}
+                                                    className="h-9 px-3.5 rounded-md border border-rule bg-white text-[13px] font-semibold text-ink hover:border-[#B9C0CC] flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-wait"
+                                                >
+                                                    {liberando ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Unlock className="w-4 h-4" />}
+                                                    Liberar edição
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
                     </table>
                     )}
                 </div>
