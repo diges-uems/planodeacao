@@ -164,6 +164,8 @@ function doGet(e) {
   if (!claims) return respostaNaoAutorizado();
 
   if (e.parameter.action === 'get_deadlines') {
+    // Prazos internos são da PROE; o frontend só os pede no painel da PROE.
+    if (claims.role !== 'reitoria') return respostaNaoAutorizado();
     var sheet = ss.getSheetByName('CONFIG_PRAZOS');
     var deadlines = {};
     if (sheet) {
@@ -178,6 +180,10 @@ function doGet(e) {
   // default GET: fetch data from year sheets
   var sheets = ss.getSheets();
   var allData = [];
+  // Coordenador só recebe os registros do próprio curso. Antes o filtro era feito no
+  // navegador, então qualquer coordenador via os dados de todos os cursos pela rede.
+  // Mesma comparação (coluna C x courseId do token) usada nas escritas do doPost.
+  var cursoDoCoordenador = claims.role === 'coordenador' ? String(claims.courseId) : null;
 
   sheets.forEach(function(s) {
     var sheetName = s.getName();
@@ -190,6 +196,7 @@ function doGet(e) {
     var d = s.getDataRange().getValues();
     d.forEach(function(r) {
       if (r[3] && r[3] !== "Curso" && r[0] !== "" && !r[0].toString().toUpperCase().startsWith("CURSO:")) {
+        if (cursoDoCoordenador !== null && String(r[2]) !== cursoDoCoordenador) return;
         var acomp = [];
         if (r[15]) {
           try { acomp = parseAcompanhamentosTextoParaArray(r[15]); } catch(err) { acomp = []; }
