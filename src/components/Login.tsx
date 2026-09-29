@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { LogIn, Eye, EyeOff, XCircle, Loader2, AlertCircle } from 'lucide-react';
-import { login } from '../lib/api';
+import { login, aquecerBackend } from '../lib/api';
 import type { User } from '../types';
 
 interface LoginProps {
@@ -15,6 +15,8 @@ export function Login({ onLogin }: LoginProps) {
     const [errorMessage, setErrorMessage] = useState('Senha incorreta.');
     const [isCapsOn, setIsCapsOn] = useState(false);
     const passwordRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => { aquecerBackend(); }, []);
 
     const handleLogin = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
