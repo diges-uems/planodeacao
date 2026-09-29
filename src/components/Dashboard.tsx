@@ -66,7 +66,7 @@ const FILTROS_PRAZO: { id: 'todos' | CategoriaPrazo; rotulo: string; cor?: strin
     { id: 'encerrados', rotulo: 'Encerrados', cor: 'var(--color-seal-concluida)' },
 ];
 
-const BTN_CABECALHO = 'h-9 px-3.5 rounded-md text-[13px] font-semibold flex items-center gap-2 border border-white/25 text-[#E6ECF5] hover:bg-white/10 transition-colors';
+const BTN_CABECALHO = 'h-9 px-2.5 sm:px-3.5 shrink-0 rounded-md text-[13px] font-semibold flex items-center gap-2 border border-white/25 text-[#E6ECF5] hover:bg-white/10 transition-colors';
 
 // Barra de decurso do prazo: da data da reunião (início do plano) até o prazo final.
 function PrazoBar({ row }: { row: Fragility }) {
@@ -509,31 +509,31 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     return (
         <>
             <div className="space-y-6 w-full text-left">
-                <header className="bg-uems-dark border-b-[3px] border-uems-gold px-6 py-3 sticky top-0 z-30 flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 -mx-4 sm:-mx-6 -mt-6 sm:-mt-2 gap-4">
-                    <div>
-                        <h1 className="font-serif-boletim italic text-xl font-semibold text-white">
+                <header className="bg-uems-dark border-b-[3px] border-uems-gold px-4 sm:px-6 py-3 sticky top-0 z-30 flex items-center justify-between mb-8 -mx-4 sm:-mx-6 -mt-6 sm:-mt-2 gap-3">
+                    <div className="min-w-0">
+                        <h1 className="font-serif-boletim italic text-lg sm:text-xl font-semibold text-white truncate">
                             {isProe ? 'Painel PROE' : user.courseName}
                         </h1>
-                        <span className="text-[11px] font-semibold text-[#A9BCDD] uppercase tracking-wide">
+                        <span className="block text-[11px] font-semibold text-[#A9BCDD] uppercase tracking-wide whitespace-nowrap">
                             {isProe ? 'Gestão Institucional' : 'Gestão do Curso'}
                         </span>
                     </div>
-                    <nav aria-label="Ações do painel" className="flex flex-wrap gap-2">
+                    <nav aria-label="Ações do painel" className="flex flex-nowrap sm:flex-wrap justify-end gap-1.5 sm:gap-2 shrink-0">
                         {isProe && (
-                            <button onClick={() => setIsAlertaPrazoOpen(true)} className={BTN_CABECALHO}>
-                                <BellRing className="w-4 h-4" /> Alertar prazo
+                            <button onClick={() => setIsAlertaPrazoOpen(true)} aria-label="Alertar prazo" className={BTN_CABECALHO}>
+                                <BellRing className="w-4 h-4" /><span className="hidden sm:inline">Alertar prazo</span>
                             </button>
                         )}
-                        <button onClick={handleExportPdf} className={BTN_CABECALHO}>
-                            <FileDown className="w-4 h-4" /> Exportar PDF
+                        <button onClick={handleExportPdf} aria-label="Exportar PDF" className={BTN_CABECALHO}>
+                            <FileDown className="w-4 h-4" /><span className="hidden sm:inline">Exportar PDF</span>
                         </button>
-                        <button onClick={loadData} className={BTN_CABECALHO}>
-                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sincronizar
+                        <button onClick={loadData} aria-label="Sincronizar" className={BTN_CABECALHO}>
+                            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Sincronizar</span>
                         </button>
                         {isProe && (
                             <div ref={menuMaisRef} className="relative">
-                                <button onClick={() => setMenuMaisAberto(v => !v)} aria-haspopup="menu" aria-expanded={menuMaisAberto} className={BTN_CABECALHO}>
-                                    <MoreHorizontal className="w-4 h-4" /> Mais
+                                <button onClick={() => setMenuMaisAberto(v => !v)} aria-haspopup="menu" aria-label="Mais ações" aria-expanded={menuMaisAberto} className={BTN_CABECALHO}>
+                                    <MoreHorizontal className="w-4 h-4" /><span className="hidden sm:inline">Mais</span>
                                 </button>
                                 {menuMaisAberto && (
                                     <div role="menu" className="absolute right-0 top-full mt-2 w-56 bg-white border border-rule rounded-md shadow-lg py-1 z-40">
@@ -559,12 +559,12 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                             </div>
                         )}
                         {!isProe && onNewRecord && (
-                            <button onClick={onNewRecord} className="h-9 px-3.5 bg-white text-uems-dark rounded-md text-[13px] font-semibold hover:bg-slate-100 flex items-center gap-2 transition-colors">
-                                <Plus className="w-4 h-4" /> Nova fragilidade
+                            <button onClick={onNewRecord} className="h-9 px-3 sm:px-3.5 shrink-0 bg-white text-uems-dark rounded-md text-[13px] font-semibold hover:bg-slate-100 flex items-center gap-2 transition-colors">
+                                <Plus className="w-4 h-4" /><span className="sm:hidden">Nova</span><span className="hidden sm:inline">Nova fragilidade</span>
                             </button>
                         )}
-                        <button onClick={onLogout} className={BTN_CABECALHO}>
-                            <LogOut className="w-4 h-4" /> Sair
+                        <button onClick={onLogout} aria-label="Sair" className={BTN_CABECALHO}>
+                            <LogOut className="w-4 h-4" /><span className="hidden sm:inline">Sair</span>
                         </button>
                     </nav>
                 </header>
@@ -745,7 +745,71 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
             <div className="bg-white border border-slate-200 rounded-lg overflow-hidden mt-8 flex flex-col">
                 <div className="overflow-x-auto flex-1 relative min-h-[400px]">
                     {!isProe ? (
-                    <table className="app-table text-left w-full min-w-[900px]">
+                    <>
+                    {/* Celular: cartões no lugar da tabela */}
+                    <ul className="md:hidden divide-y divide-rule">
+                        {loading ? (
+                            Array.from({ length: 3 }).map((_, i) => (
+                                <li key={i} className="p-4 flex flex-col gap-3" style={{ opacity: 1 - i * 0.2 }}>
+                                    {[40, 90, 70].map((w, j) => (
+                                        <div key={j} style={{ height: '12px', width: `${w}%`, borderRadius: '6px', background: 'linear-gradient(90deg, #f1f5f9 25%, #e8edf2 50%, #f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s ease-in-out infinite' }} />
+                                    ))}
+                                </li>
+                            ))
+                        ) : paginatedData.length === 0 ? (
+                            <li className="py-20 text-center text-slate-600 font-semibold">
+                                {filteredData.length === 0 ? 'Nenhum registro encontrado' : 'Nenhum registro neste filtro'}
+                            </li>
+                        ) : paginatedData.map(row => {
+                            const uid = row._id || `${row.ano}|${row.curso}|${row.fragilidade}`;
+                            const prazoDisplay = /^\d{4}-\d{2}-\d{2}$/.test(row.prazo || '') ? (row.prazo || '').split('-').reverse().join('/') : row.prazo;
+                            const responsaveis = parseResponsaveis(row.responsavel).filter(r => r.nome.trim());
+                            const feitos = responsaveis.filter(r => r.feito).length;
+                            const encerrado = isFinalizado(row);
+                            return (
+                                <li key={uid} className={`p-4 flex flex-col gap-3 ${selectedForPdf.has(uid) ? 'bg-slate-50' : ''}`}>
+                                    <div className="flex items-center justify-between gap-3">
+                                        {renderStatusBadge(row)}
+                                        <div className="flex items-center gap-2">
+                                            {row.id && <span className="font-mono text-[11px] text-ink-muted">#{row.id}</span>}
+                                            <input type="checkbox" aria-label={`Selecionar registro ${row.id ? '#' + row.id : row.fragilidade} para o PDF`} className="w-5 h-5 accent-uems-blue" checked={selectedForPdf.has(uid)} onChange={() => handleToggleSelect(uid)} />
+                                        </div>
+                                    </div>
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{row.tipo}</span>
+                                    <button onClick={() => setItemToView(row)} className="-mt-1 text-left text-base font-semibold leading-snug text-uems-blue hover:underline">
+                                        {row.fragilidade}
+                                    </button>
+                                    <div className="flex flex-col gap-1.5">
+                                        <span className={`font-mono text-[13px] ${encerrado ? 'text-ink-muted' : ''}`}>{prazoDisplay || '—'}</span>
+                                        {encerrado
+                                            ? <span className="text-xs text-ink-muted">Sem contagem: {(getStatus(row) || '').toLowerCase()}</span>
+                                            : <PrazoBar row={row} />}
+                                    </div>
+                                    {responsaveis.length > 0 && (
+                                        <span className={`text-[13px] ${feitos === responsaveis.length ? 'font-semibold text-seal-concluida' : 'text-ink-muted'}`}>
+                                            Responsáveis: {feitos} de {responsaveis.length} concluíram
+                                        </span>
+                                    )}
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setItemToAcompanhar(row)} className="flex-1 h-11 rounded-md border border-rule bg-white text-sm font-semibold text-ink flex items-center justify-center gap-2">
+                                            <ClipboardList className="w-4 h-4" /> Acompanhar
+                                        </button>
+                                        {user.podeEditar && (
+                                            <>
+                                                <button onClick={() => setItemToEdit(row)} aria-label="Editar registro" className="w-11 h-11 rounded-md border border-rule bg-white flex items-center justify-center text-ink-muted">
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button onClick={() => setItemToDelete(row)} aria-label="Excluir registro" className="w-11 h-11 rounded-md border border-rule bg-white flex items-center justify-center text-seal-nao-executada">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                    <table className="hidden md:table app-table text-left w-full min-w-[900px]">
                         <thead>
                             <tr>
                                 <th className="text-center w-12">
@@ -852,6 +916,7 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                             })}
                         </tbody>
                     </table>
+                    </>
                     ) : (
                     <table className="app-table text-left w-full min-w-[1000px]">
                         <thead>
