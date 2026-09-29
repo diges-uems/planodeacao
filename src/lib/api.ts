@@ -17,8 +17,11 @@ import type { Fragility, Acompanhamento } from '../types';
 // Só pode ser usado em chamadas idempotentes (leituras): um 404 nessa perna NÃO garante
 // que o script deixou de rodar, então sobrepor ou repetir uma escrita duplicaria registros.
 const HEDGE_MS = 3000;
-const TIMEOUT_TENTATIVA_MS = 12000;
+// Sem hedge, cada tentativa espera até 25s: em 29/09/2026 respostas boas chegavam em
+// ~12s e o limite antigo (12s) abortava justamente as que iam dar certo.
+const TIMEOUT_TENTATIVA_MS = 25000;
 const TIMEOUT_TOTAL_MS = 40000;
+const TIMEOUT_TOTAL_SEM_HEDGE_MS = 75000;
 const TENTATIVAS_LEITURA = 3;
 
 async function fetchComRetry(url: string, init?: RequestInit, opcoes?: { hedge?: boolean }): Promise<Response> {
@@ -104,7 +107,7 @@ async function fetchComRetry(url: string, init?: RequestInit, opcoes?: { hedge?:
         timers.push(setTimeout(() => {
             ultimoErro = new Error('Tempo esgotado ao conectar com Apps Script');
             falhar();
-        }, TIMEOUT_TOTAL_MS));
+        }, usarHedge ? TIMEOUT_TOTAL_MS : TIMEOUT_TOTAL_SEM_HEDGE_MS));
 
         disparar();
     });
