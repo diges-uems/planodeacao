@@ -1,38 +1,60 @@
-# Plano de Ação UEMS — PROE/DIGES
+# Plano de Ação dos Cursos — UEMS (PROE/DIGES)
 
-Este projeto é o frontend do sistema de Plano de Ação da Universidade Estadual de Mato Grosso do Sul (UEMS), focado no gerenciamento e acompanhamento de fragilidades acadêmicas. O sistema conecta um frontend moderno a um backend baseado em Google Apps Script + Google Sheets.
+Sistema para registrar e acompanhar as fragilidades dos cursos de graduação da Universidade Estadual
+de Mato Grosso do Sul (ENADE, avaliação in loco e autoavaliação) e os planos de ação de cada uma.
+
+- **Coordenações de curso** entram com a senha do curso, registram fragilidades (montando uma lista e
+  enviando tudo de uma vez), acompanham prazos e registram o andamento das ações.
+- **PROE** entra com a senha institucional e vê o panorama de todos os cursos: indicadores, cursos sem
+  registro, prazos internos e liberação de edição.
+
+Site publicado: https://diges-uems.github.io/planodeacao/
 
 ## Arquitetura
 
-*   **Frontend**: React 19, TypeScript, Tailwind CSS v4, Vite, e componentes animados via `motion/react`.
-*   **Backend / Banco de Dados**: Google Apps Script e Google Sheets, utilizando `doGet` e `doPost` para expor uma API REST.
+- **Frontend**: React 19, TypeScript, Vite e Tailwind CSS v4; ícones `lucide-react`, animações `motion/react`.
+  Publicado como site estático no GitHub Pages.
+- **Backend**: Google Apps Script (`gas/Code.gs`) vinculado à planilha "Plano de Ação" no Google Sheets,
+  expondo `doGet`/`doPost`. Não há servidor próprio.
+- **Autenticação**: o login devolve um token assinado (HMAC, válido por 12h) com o papel (`reitoria` = PROE
+  ou `coordenador`) e o curso. Todas as chamadas exigem o token, e o backend devolve ao coordenador apenas
+  os registros do próprio curso.
 
-## Pré-requisitos
+## Executar localmente
 
-*   Node.js ≥ 18
+Pré-requisito: Node.js ≥ 18.
 
-## Instalação e Execução Local
+```bash
+npm install
+npm run dev     # http://localhost:3000/planodeacao/
+npm run lint    # checagem de tipos (tsc --noEmit)
+npm run build   # gera dist/
+```
 
-1.  Instale as dependências:
-    ```bash
-    npm install
-    ```
-2.  A URL do Apps Script está configurada diretamente no arquivo `src/lib/constants.ts` (variável `API_URL`). Isso facilita o deploy estático no GitHub Pages. Para alterar o backend, edite este arquivo.
-3.  Inicie o servidor de desenvolvimento:
-    ```bash
-    npm run dev
-    ```
+A URL do backend fica em `src/lib/constants.ts` (`API_URL`).
 
-## Configuração do Google Sheets
+## Publicação
 
-Para que o backend funcione corretamente, crie as seguintes abas no seu Google Sheets vinculado ao Apps Script:
+- **Frontend**: todo push na branch `main` publica no GitHub Pages (`.github/workflows/deploy.yml`), em 1–2 minutos.
+- **Backend**: o código de `gas/Code.gs` é só o registro; vale o que está publicado no Apps Script. Para
+  publicar uma alteração, cole o código no editor do Apps Script e vá em *Implantar → Gerenciar implantações →
+  editar a implantação em uso → Versão: Nova versão*. **Não crie uma nova implantação**: isso gera outra URL
+  e o site continuaria apontando para a antiga.
 
-*   `DADOS`: Tabela principal para armazenamento das fragilidades e acompanhamentos.
-*   `CONFIG`: Contém a senha master e o salt. (Linha 1, Coluna 1 = senha master).
-*   `CURSOS`: Cadastro de cursos com as colunas: `hash`, `courseId`, `courseName`. O `hash` é o base64 da senha do coordenador.
-*   `CONFIG_PRAZOS`: Armazena as configurações de prazos limite (criado automaticamente na primeira execução de save_deadlines).
+## Planilha
 
-## Links Úteis
+Abas usadas pelo Apps Script:
 
-*   Aviso de segurança: consulte [SECURITY.md](./SECURITY.md).
-*   Projeto criado no Google AI Studio: [https://aistudio.google.com/](https://aistudio.google.com/)
+| Aba | Conteúdo |
+| --- | --- |
+| `CONFIG` | Senha mestre da PROE (linha 1, coluna 1). |
+| `CURSOS` | `hash`, `courseId`, `courseName`, `Email`, `Liberado` — senhas dos cursos e liberação de edição. |
+| `CURSOS_EMAIL` | E-mails das coordenações para os avisos. |
+| `CONFIG_PRAZOS` | Prazos internos definidos pela PROE. |
+| `2026`, `2027`… | Uma aba por ano de referência, com uma tabela por curso. |
+| `Log_Acessos`, `Atualizações`, `Exclusões` | Histórico de acessos e alterações. |
+
+## Mais informações
+
+- Segurança: [SECURITY.md](./SECURITY.md)
+- Passagem de responsabilidade e manutenção: [HANDOVER.md](./HANDOVER.md)
