@@ -4,14 +4,16 @@ import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
 import { serializeResponsaveis, parseResponsaveis } from '../lib/utils';
 import { AlertCircle, Plus, X, Pencil, Trash2, Send } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface ActionFormProps {
     user: User;
     cart: Fragility[];
     onSaveToCart: (fragility: Fragility) => void;
-    onEditCartItem: (idx: number, item: Fragility) => void;
+    onEditCartItem: (idx: number) => void;
     onRemoveCartItem: (idx: number) => void;
     onReview: () => void;
+    revisaoAberta: boolean;
     showAlert: (title: string, message: string) => void;
 }
 
@@ -91,7 +93,7 @@ function Campo({ id, rotulo, dica, erro, grupo, children }: { id: string; rotulo
     );
 }
 
-export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveCartItem, onReview, showAlert }: ActionFormProps) {
+export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveCartItem, onReview, revisaoAberta, showAlert }: ActionFormProps) {
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 6 }, (_, i) => currentYear - 1 + i);
 
@@ -334,6 +336,7 @@ export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveC
         });
 
         limparFormulario();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     const handleReviewClick = () => {
@@ -493,7 +496,9 @@ export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveC
                 </div>
             </form>
 
-            <aside aria-label="Lista para envio" className="bg-white border border-rule rounded-lg flex flex-col lg:sticky lg:top-24">
+            {/* Some enquanto a revisão está aberta: o mesmo layoutId faz a lista "sair" daqui para a tela cheia. */}
+            {!revisaoAberta && (
+            <motion.aside layoutId="lista-envio" transition={{ type: 'spring', stiffness: 260, damping: 32 }} style={{ borderRadius: 8 }} aria-label="Lista para envio" className="bg-white border border-rule flex flex-col lg:sticky lg:top-24">
                 <div className="flex items-center justify-between px-6 py-5 border-b-2 border-uems-gold">
                     <h2 className="font-serif-boletim italic text-[17px] font-semibold text-uems-dark">Lista para envio</h2>
                     <span className="font-mono text-xs font-medium text-uems-blue bg-seal-aguardando-bg px-2 py-0.5 rounded-full">{cart.length}</span>
@@ -511,7 +516,7 @@ export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveC
                                         <span className="text-sm font-semibold leading-snug text-ink">{item.fragilidade}</span>
                                         <span className="text-xs text-ink-muted">Prazo {dataBR(item.prazo)} · {nResp} {nResp === 1 ? 'responsável' : 'responsáveis'}</span>
                                     </div>
-                                    <button type="button" onClick={() => onEditCartItem(idx, item)} aria-label={`Editar item ${idx + 1}`} className="w-11 h-11 shrink-0 flex items-center justify-center rounded-md text-ink-muted hover:bg-slate-100 hover:text-ink transition-colors">
+                                    <button type="button" onClick={() => onEditCartItem(idx)} aria-label={`Editar item ${idx + 1}`} className="w-11 h-11 shrink-0 flex items-center justify-center rounded-md text-ink-muted hover:bg-slate-100 hover:text-ink transition-colors">
                                         <Pencil className="w-4 h-4" />
                                     </button>
                                     <button type="button" onClick={() => onRemoveCartItem(idx)} aria-label={`Remover item ${idx + 1}`} className="w-11 h-11 shrink-0 flex items-center justify-center rounded-md text-ink-muted hover:bg-seal-nao-executada-bg hover:text-seal-nao-executada transition-colors">
@@ -528,7 +533,8 @@ export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveC
                     </button>
                     <p className="text-xs text-ink-muted leading-relaxed text-center">Nada é enviado à PROE até você confirmar na revisão.</p>
                 </div>
-            </aside>
+            </motion.aside>
+            )}
         </div>
     );
 }

@@ -39,7 +39,7 @@ textos em português do Brasil.
 ## Frontend — estrutura
 
 - `App.tsx`: sessão em `sessionStorage` (`sessao`), expira após **30 min sem atividade**; views `login`,
-  `formulario` (coordenador), `dashboard`. Lista para envio (`cart`) vive aqui.
+  `formulario` (coordenador), `dashboard`. Lista para envio (`cart`) vive aqui e fica no `localStorage` (`lista-envio-<courseId>`) até ser enviada.
 - `Login.tsx`: foto `public/campus-uems.jpg` (src relativo `campus-uems.jpg`), rótulo Senha, olho 44px,
   Caps Lock, contato "Problemas para acessar? ✉ enade@uems.br". **Não recolocar** a dica
   "Coordenação usa a senha do curso; a PROE, a senha institucional" (usuário pediu para tirar).
