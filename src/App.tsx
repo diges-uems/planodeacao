@@ -7,13 +7,14 @@ import { ListaEnvioModal } from './components/ListaEnvioModal';
 import { RegisterEmailModal } from './components/RegisterEmailModal';
 import type { Fragility, User, ViewState } from './types';
 import { submitCart, registerCourseEmail } from './lib/api';
-import { LogOut, ArrowLeft } from 'lucide-react';
+import { LogOut, ArrowLeft, Check, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 // Sessão sobrevive a recarregar a página, mas não a fechar a aba (sessionStorage) nem a
 // mais de INATIVIDADE_MAX_MS sem interação — aí é preciso logar de novo.
 const SESSAO_KEY = 'sessao';
 const INATIVIDADE_MAX_MS = 30 * 60 * 1000;
+const TOAST_MS = 3000;
 
 interface SessaoSalva { user: User; view: ViewState; ultimaAtividade: number }
 
@@ -65,7 +66,7 @@ export default function App() {
 
     useEffect(() => {
         if (toastMsg) {
-            const t = setTimeout(() => setToastMsg(null), 2000);
+            const t = setTimeout(() => setToastMsg(null), TOAST_MS);
             return () => clearTimeout(t);
         }
     }, [toastMsg]);
@@ -157,9 +158,12 @@ export default function App() {
         setIsSubmitting(false);
         
         if (success) {
+            const n = cart.length;
             setCart([]);
             handleCloseLista();
-            setSuccessMessage('Itens enviados com sucesso!');
+            setSuccessMessage(n === 1
+                ? 'A fragilidade foi registrada e já aparece para a PROE.'
+                : `As ${n} fragilidades foram registradas e já aparecem para a PROE.`);
         } else {
             setAlertState({ title: 'Erro', message: 'Falha ao sincronizar dados. Verifique a conexão e tente novamente.' });
         }
@@ -256,10 +260,13 @@ export default function App() {
                         isSubmitting={isSubmitting}
                     />
 
-                    <SuccessModal 
+                    <SuccessModal
                         isOpen={!!successMessage}
                         onClose={() => setSuccessMessage('')}
+                        title="Envio concluído"
                         message={successMessage}
+                        actionLabel="Ver registros"
+                        onAction={() => { setSuccessMessage(''); setView('dashboard'); }}
                     />
 
                     <AlertModal
@@ -280,15 +287,26 @@ export default function App() {
 
             <AnimatePresence>
                 {toastMsg && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 8 }}
-                        transition={{ duration: 0.15 }}
-                        className="fixed bottom-6 right-6 z-50 bg-white border border-slate-200 shadow-lg text-slate-800 rounded-lg px-6 py-4 text-sm font-medium flex items-center justify-between min-w-[280px]"
+                    <motion.div
+                        key={toastMsg}
+                        role="status"
+                        aria-live="polite"
+                        initial={{ opacity: 0, y: 16, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 8, scale: 0.98, transition: { duration: 0.15 } }}
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                        className="fixed z-[110] bottom-4 inset-x-4 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[360px] bg-uems-dark text-white rounded-lg shadow-[0_16px_40px_rgba(0,10,25,0.35)] overflow-hidden"
                     >
-                        <span>{toastMsg}</span>
-                        <button onClick={() => setToastMsg(null)} className="ml-4 text-slate-400 hover:text-slate-600 transition-colors">✕</button>
+                        <div className="flex items-center gap-3 pl-4 pr-2 py-3">
+                            <span className="w-7 h-7 shrink-0 rounded-full bg-uems-gold/15 flex items-center justify-center">
+                                <Check className="w-4 h-4 text-uems-gold" strokeWidth={3} />
+                            </span>
+                            <span className="flex-1 text-sm font-medium leading-snug">{toastMsg}</span>
+                            <button onClick={() => setToastMsg(null)} aria-label="Fechar aviso" className="w-9 h-9 shrink-0 flex items-center justify-center rounded-md text-[#A9BCDD] hover:text-white hover:bg-white/10 transition-colors">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <motion.div initial={{ scaleX: 1 }} animate={{ scaleX: 0 }} transition={{ duration: TOAST_MS / 1000, ease: 'linear' }} className="h-[3px] bg-uems-gold origin-left" />
                     </motion.div>
                 )}
             </AnimatePresence>
