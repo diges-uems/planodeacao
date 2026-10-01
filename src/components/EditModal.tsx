@@ -14,6 +14,51 @@ interface EditModalProps {
 }
 
 export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditModalProps) {
+    return (
+        <AnimatePresence>
+            {isOpen && item && (
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="fixed inset-0 z-[60] bg-[rgba(15,23,42,0.5)] flex items-center justify-center p-4"
+                >
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto text-left"
+                    >
+                        <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between sticky top-0 bg-white z-10">
+                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800">
+                                Editar Registro
+                            </h3>
+                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                ✕
+                            </button>
+                        </header>
+                        <EditForm item={item} onSave={onSave} onCancel={onClose} isProcessing={isProcessing} />
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+}
+
+interface EditFormProps {
+    item: Fragility;
+    onSave: (newData: Partial<Fragility>) => void | Promise<void>;
+    onCancel: () => void;
+    isProcessing?: boolean;
+    cancelText?: string;
+    saveText?: string;
+    mostrarConcluiu?: boolean;
+}
+
+// Formulário de edição de um registro, usado no EditModal (painel) e na revisão da lista para envio.
+export function EditForm({ item, onSave, onCancel, isProcessing = false, cancelText = 'Cancelar', saveText = 'Salvar Edição', mostrarConcluiu = true }: EditFormProps) {
     const [formData, setFormData] = useState<Partial<Fragility>>({});
     const [outraFonteTexto, setOutraFonteTexto] = useState('');
     const [responsaveis, setResponsaveis] = useState<Responsavel[]>([{ nome: '', feito: false }]);
@@ -38,7 +83,7 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
     const fonteSelectValue = fonteEhOutra ? 'Outra' : (formData.fonte || '');
 
     useEffect(() => {
-        if (item) {
+        {
             setFormData({
                 tipo: item.tipo,
                 fragilidade: item.fragilidade,
@@ -85,31 +130,6 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
     };
 
     return (
-        <AnimatePresence>
-            {isOpen && item && (
-                <motion.div 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15 }}
-                    className="fixed inset-0 z-[60] bg-[rgba(15,23,42,0.5)] flex items-center justify-center p-4"
-                >
-                    <motion.div 
-                        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-                        className="gold-rule bg-white border border-slate-200 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto text-left"
-                    >
-                        <header className="border-b border-slate-100 px-6 py-5 flex items-center justify-between sticky top-0 bg-white z-10">
-                            <h3 className="font-serif-boletim italic text-base font-semibold text-slate-800">
-                                Editar Registro
-                            </h3>
-                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-                                ✕
-                            </button>
-                        </header>
-
                         <form onSubmit={handleSubmit} className="p-6 space-y-6">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <div>
@@ -174,6 +194,7 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                                                     required={index === 0}
                                                     className="input-uems flex-1"
                                                 />
+                                                {mostrarConcluiu && (
                                                 <label className="flex items-center gap-1 text-xs text-slate-500 whitespace-nowrap">
                                                     <input
                                                         type="checkbox"
@@ -182,6 +203,7 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                                                     />
                                                     Concluiu
                                                 </label>
+                                                )}
                                                 {responsaveis.length > 1 && (
                                                     <button type="button" onClick={() => handleRemoveResponsavel(index)} className="text-slate-400 hover:text-red-500 bg-transparent hover:bg-transparent px-1">
                                                         ✕
@@ -211,17 +233,13 @@ export function EditModal({ isOpen, onClose, item, onSave, isProcessing }: EditM
                             </div>
 
                             <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
-                                <button type="button" onClick={onClose} disabled={isProcessing} className="border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md py-2 px-4 text-sm font-medium transition-colors disabled:opacity-50">
-                                    Cancelar
+                                <button type="button" onClick={onCancel} disabled={isProcessing} className="border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-md py-2 px-4 text-sm font-medium transition-colors disabled:opacity-50">
+                                    {cancelText}
                                 </button>
                                 <button type="submit" disabled={isProcessing} className="bg-uems-blue text-white hover:bg-uems-dark rounded-md py-2 px-4 text-sm font-semibold transition-colors disabled:opacity-50">
-                                    {isProcessing ? 'Salvando...' : 'Salvar Edição'}
+                                    {isProcessing ? 'Salvando...' : saveText}
                                 </button>
                             </div>
                         </form>
-                    </motion.div>
-                </motion.div>
-            )}
-        </AnimatePresence>
     );
 }

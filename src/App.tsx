@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Login } from './components/Login';
 import { ActionForm } from './components/ActionForm';
 import { Dashboard } from './components/Dashboard';
-import { CartModal, SuccessModal, AlertModal } from './components/Modals';
-import { EditModal } from './components/EditModal';
+import { SuccessModal, AlertModal } from './components/Modals';
+import { ListaEnvioModal } from './components/ListaEnvioModal';
 import { RegisterEmailModal } from './components/RegisterEmailModal';
 import type { Fragility, User, ViewState } from './types';
 import { submitCart, registerCourseEmail } from './lib/api';
@@ -26,6 +26,18 @@ function lerSessao(): SessaoSalva | null {
     return null;
 }
 
+// Lista para envio fica no localStorage, por curso: sobrevive a fechar a aba, sair ou a
+// sessão expirar, e só some depois do envio.
+const chaveLista = (courseId: string) => `lista-envio-${courseId}`;
+
+function lerLista(user: User | null): Fragility[] {
+    if (!user || user.role !== 'coordenador') return [];
+    try {
+        const l = JSON.parse(localStorage.getItem(chaveLista(user.courseId)) || '[]');
+        return Array.isArray(l) ? l : [];
+    } catch { return []; }
+}
+
 function salvarSessao(s: SessaoSalva | null) {
     try {
         if (s) sessionStorage.setItem(SESSAO_KEY, JSON.stringify(s));
@@ -38,7 +50,7 @@ export default function App() {
     const [view, setView] = useState<ViewState>(sessaoInicial?.view ?? 'login');
     const [user, setUser] = useState<User | null>(sessaoInicial?.user ?? null);
     const ultimaAtividade = useRef(Date.now());
-    const [cart, setCart] = useState<Fragility[]>([]);
+    const [cart, setCart] = useState<Fragility[]>(() => lerLista(sessaoInicial?.user ?? null));
     
     // Modal states
     const [isCartOpen, setIsCartOpen] = useState(false);
@@ -46,7 +58,7 @@ export default function App() {
     const [successMessage, setSuccessMessage] = useState('');
     const [alertState, setAlertState] = useState<{title: string, message: string} | null>(null);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
-    const [cartItemToEdit, setCartItemToEdit] = useState<{ index: number, item: Fragility } | null>(null);
+    const [editIdx, setEditIdx] = useState<number | null>(null);
     
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [isRegisteringEmail, setIsRegisteringEmail] = useState(false);
@@ -60,6 +72,7 @@ export default function App() {
 
     const handleLogin = (u: User) => {
         setUser(u);
+        setCart(lerLista(u));
         if (u.role === 'coordenador' && u.emailRegistrado === false) {
             setShowEmailModal(true);
         }
@@ -80,6 +93,14 @@ export default function App() {
     useEffect(() => {
         salvarSessao(user && view !== 'login' ? { user, view, ultimaAtividade: ultimaAtividade.current } : null);
     }, [user, view]);
+
+    useEffect(() => {
+        if (!user || user.role !== 'coordenador') return;
+        try {
+            if (cart.length) localStorage.setItem(chaveLista(user.courseId), JSON.stringify(cart));
+            else localStorage.removeItem(chaveLista(user.courseId));
+        } catch { /* storage indisponível: lista fica só na memória */ }
+    }, [cart, user]);
 
     // Atividade renova a sessão; voltar depois de muito tempo parado exige novo login.
     useEffect(() => {
@@ -112,20 +133,22 @@ export default function App() {
         }
     };
 
-    const handleEditCartItem = (idx: number, item: Fragility) => {
-        setCartItemToEdit({ index: idx, item });
+    // Editar (da lateral ou da revisão) abre a lista em tela cheia já na aba de edição.
+    const handleEditCartItem = (idx: number) => {
+        setEditIdx(idx);
+        setIsCartOpen(true);
     };
 
-    const handleSaveCartEdit = async (newData: Partial<Fragility>) => {
-        if (cartItemToEdit !== null) {
-            setCart(prev => {
-                const newCart = [...prev];
-                newCart[cartItemToEdit.index] = { ...newCart[cartItemToEdit.index], ...newData } as Fragility;
-                return newCart;
-            });
-            setCartItemToEdit(null);
-            setToastMsg('Item atualizado na lista.');
-        }
+    const handleCloseLista = () => {
+        setIsCartOpen(false);
+        setEditIdx(null);
+    };
+
+    const handleSaveCartEdit = (newData: Partial<Fragility>) => {
+        if (editIdx === null) return;
+        setCart(prev => prev.map((item, i) => i === editIdx ? { ...item, ...newData } as Fragility : item));
+        setEditIdx(null);
+        setToastMsg('Item atualizado na lista.');
     };
 
     const handleSubmitCart = async () => {
@@ -135,7 +158,7 @@ export default function App() {
         
         if (success) {
             setCart([]);
-            setIsCartOpen(false);
+            handleCloseLista();
             setSuccessMessage('Itens enviados com sucesso!');
         } else {
             setAlertState({ title: 'Erro', message: 'Falha ao sincronizar dados. Verifique a conexão e tente novamente.' });
@@ -202,6 +225,7 @@ export default function App() {
                                     onEditCartItem={handleEditCartItem}
                                     onRemoveCartItem={handleRemoveFromCart}
                                     onReview={() => setIsCartOpen(true)}
+                                    revisaoAberta={isCartOpen}
                                     showAlert={(title, message) => setAlertState({ title, message })}
                                 />
                             </div>
@@ -219,22 +243,17 @@ export default function App() {
                         )}
                     </main>
 
-                    <CartModal 
+                    <ListaEnvioModal
                         isOpen={isCartOpen}
-                        onClose={() => setIsCartOpen(false)}
                         cart={cart}
+                        editIdx={editIdx}
+                        onEdit={setEditIdx}
+                        onBack={() => setEditIdx(null)}
+                        onClose={handleCloseLista}
                         onRemove={handleRemoveFromCart}
-                        onEdit={handleEditCartItem}
+                        onSaveEdit={handleSaveCartEdit}
                         onSubmit={handleSubmitCart}
                         isSubmitting={isSubmitting}
-                    />
-
-                    <EditModal
-                        isOpen={!!cartItemToEdit}
-                        onClose={() => setCartItemToEdit(null)}
-                        item={cartItemToEdit?.item || null}
-                        onSave={handleSaveCartEdit}
-                        isProcessing={false}
                     />
 
                     <SuccessModal 
