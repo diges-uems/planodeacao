@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Eye, EyeOff, XCircle, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
+import { Eye, EyeOff, XCircle, Loader2, AlertCircle, ArrowRight, Mail } from 'lucide-react';
 import { login, aquecerBackend } from '../lib/api';
 import type { User } from '../types';
 
@@ -80,8 +80,8 @@ export function Login({ onLogin }: LoginProps) {
                 <span className="absolute -bottom-px -right-px w-6 h-6 border-b-2 border-r-2 border-uems-gold"></span>
             </div>
 
-            <div className="relative z-10 w-full max-w-7xl mx-auto md:px-12 lg:px-32 flex-1 md:flex-none flex flex-col md:flex-row md:items-center md:justify-between gap-16 text-left">
-                <div className="hidden md:flex flex-col gap-6 max-w-2xl">
+            <div className="relative z-10 w-full max-w-[1600px] mx-auto md:px-12 lg:px-20 xl:px-32 flex-1 md:flex-none flex flex-col md:flex-row md:items-center md:justify-between gap-16 lg:gap-24 text-left">
+                <div className="hidden md:flex flex-col gap-6 max-w-xl">
                     {titulo}
                     <div className="h-px w-24 bg-uems-gold"></div>
                     <p className="text-lg text-[#D5DCE6] leading-relaxed max-w-lg">
@@ -147,9 +147,12 @@ export function Login({ onLogin }: LoginProps) {
                         )}
                     </button>
 
-                    <p className="pt-4 border-t border-rule text-[13px] leading-relaxed text-ink-muted">
-                        Problemas para entrar? Escreva para <a href="mailto:enade@uems.br" className="text-uems-blue underline underline-offset-2 hover:text-uems-dark">enade@uems.br</a>.
-                    </p>
+                    <div className="pt-4 border-t border-rule flex items-center justify-between gap-3 flex-wrap">
+                        <span className="text-[13px] text-ink-muted">Problemas para acessar?</span>
+                        <a href="mailto:enade@uems.br" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-uems-blue hover:text-uems-dark hover:underline underline-offset-2">
+                            <Mail className="w-4 h-4" /> enade@uems.br
+                        </a>
+                    </div>
                 </form>
             </div>
 
