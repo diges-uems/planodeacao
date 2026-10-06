@@ -1227,7 +1227,7 @@ function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverri
   var targetEmail = toOverride || "enade@uems.br"; // ALVO RECEBEDOR
 
   var portalLink = "https://diges-uems.github.io/planodeacao/";
-  var dataOperacao = Utilities.formatDate(new Date(), "GMT-04:00", "dd/MM/yyyy 'às' HH:mm:ss");
+  var dataOperacao = Utilities.formatDate(new Date(), "GMT-04:00", "dd/MM/yyyy 'às' HH:mm");
 
   var htmlBody = generateEmailTemplate(assunto, textoPrincipal, detalhesContexto || "", portalLink, dataOperacao, isTest || false);
 
@@ -1247,85 +1247,74 @@ function enviarEmail(assunto, textoPrincipal, detalhesContexto, isTest, toOverri
 }
 
 /**
- * Gera o corpo do e-mail em HTML injetando parâmetros no template corporativo.
- * Monta o layout com o logo da UEMS, cabeçalhos, tabela de detalhes e botão de acesso.
+ * Gera o corpo do e-mail em HTML no visual do app (papel, azul-marinho, dourado, títulos serif).
+ * Tudo em tabelas com estilo inline: Gmail/Outlook ignoram <style>, fontes externas e filtros.
+ * As linhas de detalhe chegam como <div class='detail-row'>…label…value…</div> (montadas em
+ * cada aviso) e são convertidas aqui em linhas de tabela.
  */
 function generateEmailTemplate(title, messageBody, detalhesContexto, portalLink, dataOperacao, isTest) {
-  var testBadge = isTest
-    ? "<div class='badge sans' style='background-color: #C8A84B; color: #ffffff; border: none; border-radius: 4px; padding: 4px 10px;'>Ambiente de Teste</div>"
+  var SERIF = "Georgia, Times New Roman, serif"; // sem aspas: os estilos inline são delimitados por '
+  var SANS = "Segoe UI, Roboto, Helvetica, Arial, sans-serif";
+  var AZUL = "#00338C", MARINHO = "#001529", OURO = "#C8A84B", OURO_ESCURO = "#93732A";
+  var PAPEL = "#F3F4F7", TINTA = "#101826", TINTA_SUAVE = "#4B5568", LINHA = "#DDE1E8";
+
+  var safeTitle = String(title).replace("[PROE/UEMS] ", "").replace(/^Aviso:\s*/, "");
+
+  var linhas = [];
+  String(detalhesContexto || "").replace(
+    /<div class='detail-row'><span class='detail-label[^']*'>([\s\S]*?)<\/span><span class='detail-value[^']*'>([\s\S]*?)<\/span><\/div>/g,
+    function (_, rotulo, valor) { linhas.push([rotulo, valor]); return ""; }
+  );
+  var detalhes = "";
+  if (linhas.length) {
+    detalhes = "<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='border-collapse:collapse;margin:0 0 32px 0;border-top:1px solid " + LINHA + ";'>";
+    for (var i = 0; i < linhas.length; i++) {
+      detalhes +=
+        "<tr>" +
+        "<td valign='top' style='padding:12px 16px 12px 0;border-bottom:1px solid " + LINHA + ";font-family:" + SANS + ";font-size:12px;line-height:1.5;color:" + TINTA_SUAVE + ";width:150px;'>" + linhas[i][0] + "</td>" +
+        "<td valign='top' style='padding:12px 0;border-bottom:1px solid " + LINHA + ";font-family:" + SANS + ";font-size:14px;line-height:1.5;color:" + TINTA + ";font-weight:600;'>" + linhas[i][1] + "</td>" +
+        "</tr>";
+    }
+    detalhes += "</table>";
+  }
+
+  var seloTeste = isTest
+    ? "<p style='margin:0 0 16px 0;'><span style='display:inline-block;padding:4px 10px;border-radius:999px;background:#FBF3E1;color:#7A5A12;font-family:" + SANS + ";font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;'>E-mail de teste</span></p>"
     : "";
 
-  var contextBox = detalhesContexto
-    ? "<div class='details'>" + detalhesContexto + "</div>"
-    : "";
+  return "<!DOCTYPE html>" +
+"<html lang='pt-BR'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>" +
+"<title>" + safeTitle + "</title></head>" +
+"<body style='margin:0;padding:0;background:" + PAPEL + ";-webkit-text-size-adjust:100%;'>" +
+"<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='background:" + PAPEL + ";'><tr><td align='center' style='padding:32px 12px;'>" +
+"<table role='presentation' width='100%' cellpadding='0' cellspacing='0' style='max-width:600px;border-collapse:separate;'>" +
 
-  var safeTitle = title.replace("[PROE/UEMS] ", "");
+// Marca
+"<tr><td style='padding:0 4px 16px 4px;font-family:" + SANS + ";font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:" + OURO_ESCURO + ";'>UEMS · Pró-Reitoria de Ensino</td></tr>" +
 
-  return "<!DOCTYPE html>\n" +
-"<html lang='pt-BR'>\n" +
-"<head>\n" +
-"  <meta charset='UTF-8'>\n" +
-"  <meta name='viewport' content='width=device-width, initial-scale=1.0'>\n" +
-"  <link rel='preconnect' href='https://fonts.googleapis.com'>\n" +
-"  <link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>\n" +
-"  <link href='https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap' rel='stylesheet'>\n" +
-"  <style>\n" +
-"    body { margin: 0; padding: 0; background-color: #f5f5f5; -webkit-font-smoothing: antialiased; }\n" +
-"    table { border-spacing: 0; border-collapse: collapse; width: 100%; }\n" +
-"    td { word-break: break-word; }\n" +
-"    .serif { font-family: 'Playfair Display', Georgia, serif; }\n" +
-"    .sans { font-family: 'Inter', -apple-system, sans-serif; }\n" +
-"    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }\n" +
-"    .wrapper { width: 100%; background-color: #f5f5f5; padding: 60px 20px; box-sizing: border-box; }\n" +
-"    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e5e5e5; }\n" +
-"    .header { padding: 40px; text-align: center; background: linear-gradient(135deg, #00338C 0%, #001f4d 100%); }\n" +
-"    .header img { height: 40px; filter: brightness(0) invert(1); margin-bottom: 12px; }\n" +
-"    .header-subtitle { color: #C8A84B; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 500; margin: 0; }\n" +
-"    .header-subtitle + .header-subtitle { margin-top: 4px; }\n" +
-"    .highlight-band { height: 4px; background-color: #C8A84B; width: 100%; }\n" +
-"    .content { padding: 50px 40px; }\n" +
-"    .title { font-size: 26px; color: #001f4d; margin: 0 0 24px 0; line-height: 1.3; font-weight: 600; }\n" +
-"    .message { font-size: 15px; line-height: 1.8; color: #333; margin: 0 0 40px 0; font-weight: 300; }\n" +
-"    .details { background-color: #F4F6FA; border-left: 4px solid #00338C; border-radius: 8px; padding: 24px 20px; margin-bottom: 40px; }\n" +
-"    .detail-row { display: table; width: 100%; margin-bottom: 12px; }\n" +
-"    .detail-row:last-child { margin-bottom: 0; }\n" +
-"    .detail-label { display: table-cell; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #00338C; width: 140px; vertical-align: top; }\n" +
-"    .detail-value { display: table-cell; font-size: 14px; color: #333; font-weight: 400; }\n" +
-"    .detail-value.mono { font-size: 13px; color: #333; }\n" +
-"    .button-wrapper { text-align: left; }\n" +
-"    .button { display: inline-block; background-color: #00338C; color: #ffffff !important; text-decoration: none; padding: 14px 28px; font-size: 13px; font-weight: 500; border-radius: 6px; }\n" +
-"    .footer { background-color: #ffffff; padding: 0 40px 40px 40px; text-align: left; font-size: 11px; color: #666; line-height: 1.6; }\n" +
-"    .footer-divider { height: 1px; background-color: #C8A84B; margin-bottom: 30px; opacity: 0.5; }\n" +
-"    .footer-highlight { color: #00338C; font-weight: 600; }\n" +
-"  </style>\n" +
-"</head>\n" +
-"<body class='sans'>\n" +
-"  <div class='wrapper'>\n" +
-"    <div class='container'>\n" +
-"      <div class='header'>\n" +
-"        <img src='https://www.uems.br/assets/img/logo-uems.png' alt='UEMS'>\n" +
-"        <p class='header-subtitle'>Pró-Reitoria de Ensino</p>\n" +
-"        <p class='header-subtitle'>Plano de Ação</p>\n" +
-"      </div>\n" +
-"      <div class='highlight-band'></div>\n" +
-"      <div class='content'>\n" +
-"        " + testBadge + "\n" +
-"        <h2 class='title serif'>" + safeTitle + "</h2>\n" +
-"        <p class='message sans'>" + messageBody + "</p>\n" +
-"        " + contextBox + "\n" +
-"        <div class='button-wrapper'>\n" +
-"          <a href='" + portalLink + "' class='button sans' target='_blank'>Acessar Portal</a>\n" +
-"        </div>\n" +
-"      </div>\n" +
-"      <div class='footer sans'>\n" +
-"        <div class='footer-divider'></div>\n" +
-"        Este é um comunicado automático gerado pelo ecossistema integrado da <strong class='footer-highlight'>PROE/UEMS</strong>.<br>\n" +
-"        Ação sincronizada em: <strong>" + dataOperacao + "</strong> (Fuso MS).\n" +
-"      </div>\n" +
-"    </div>\n" +
-"  </div>\n" +
-"</body>\n" +
-"</html>";
+// Cartão
+"<tr><td style='background:#FFFFFF;border:1px solid " + LINHA + ";border-radius:8px;overflow:hidden;'>" +
+"<table role='presentation' width='100%' cellpadding='0' cellspacing='0'>" +
+"<tr><td style='height:3px;line-height:3px;font-size:0;background:" + OURO + ";'>&nbsp;</td></tr>" +
+"<tr><td style='background:" + MARINHO + ";padding:20px 32px;font-family:" + SERIF + ";font-style:italic;font-size:18px;font-weight:600;color:#FFFFFF;'>Plano de Ação dos Cursos</td></tr>" +
+"<tr><td style='padding:36px 32px 8px 32px;'>" +
+seloTeste +
+"<h1 style='margin:0 0 12px 0;font-family:" + SERIF + ";font-style:italic;font-size:26px;line-height:1.25;font-weight:600;color:" + MARINHO + ";'>" + safeTitle + "</h1>" +
+"<p style='margin:0 0 28px 0;font-family:" + SANS + ";font-size:15px;line-height:1.65;color:" + TINTA_SUAVE + ";'>" + messageBody + "</p>" +
+detalhes +
+// Botão (tabela para funcionar no Outlook)
+"<table role='presentation' cellpadding='0' cellspacing='0' style='margin:0 0 32px 0;'><tr><td style='border-radius:6px;background:" + AZUL + ";'>" +
+"<a href='" + portalLink + "' target='_blank' style='display:inline-block;padding:13px 24px;font-family:" + SANS + ";font-size:14px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:6px;'>Abrir o Plano de Ação &rarr;</a>" +
+"</td></tr></table>" +
+"</td></tr>" +
+"<tr><td style='padding:20px 32px;border-top:1px solid " + LINHA + ";background:#FAFBFC;font-family:" + SANS + ";font-size:12px;line-height:1.6;color:" + TINTA_SUAVE + ";'>" +
+"Mensagem automática do Plano de Ação dos Cursos, enviada em " + dataOperacao + " (horário de MS).<br>" +
+"Dúvidas? Escreva para <a href='mailto:enade@uems.br' style='color:" + AZUL + ";font-weight:600;text-decoration:none;'>enade@uems.br</a>." +
+"</td></tr>" +
+"</table></td></tr>" +
+
+"<tr><td style='padding:16px 4px 0 4px;font-family:" + SANS + ";font-size:11px;line-height:1.5;color:#8A93A3;text-align:center;'>Universidade Estadual de Mato Grosso do Sul · PROE / DIGES</td></tr>" +
+"</table></td></tr></table></body></html>";
 }
 
 function configurarEmailsCursos() {
