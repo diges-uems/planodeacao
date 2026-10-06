@@ -23,7 +23,7 @@
  *
  * FLUXO DE AUTENTICAÇÃO:
  * - Senha mestre -> Acesso total à PROE (role: 'reitoria').
- * - Hash Base64 da senha individual -> Acesso restrito ao coordenador do curso correspondente (role: 'coordenador').
+ * - Senha do curso (HMAC-SHA256 em CURSOS!A, ver hashSenha()) -> Acesso restrito ao coordenador do curso (role: 'coordenador').
  * - O login (action: 'login') retorna um TOKEN assinado (HMAC-SHA256, ver getSecret()/gerarToken()/validarToken()).
  *   Esse token precisa ser enviado em TODA chamada subsequente (GET como parâmetro ?token=, POST como campo
  *   "token" no corpo JSON). Sem token válido e não expirado, o backend recusa a requisição.
@@ -269,6 +269,85 @@ function lerSenhaMestreComCache(ss) {
   var senha = String(configSheet.getRange(1, 1).getValue());
   try { cache.put(CACHE_CONFIG_KEY, senha, CACHE_TTL_S); } catch (e) { /* segue sem cache */ }
   return senha;
+}
+
+/**
+ * =========================================================================
+ * SENHAS (HMAC-SHA256)
+ * =========================================================================
+ * CURSOS!A e CONFIG!A1 guardam "sha256$" + base64(HMAC-SHA256(pepper, sal + "|" + senha)).
+ * - sal = courseId do curso (ou "PROE" para a senha mestre): mesma senha em cursos diferentes
+ *   gera valores diferentes.
+ * - pepper = chave aleatória em ScriptProperties (PEPPER_SENHAS), fora da planilha: quem só tem a
+ *   planilha não consegue testar senhas por força bruta. NÃO apague essa propriedade — sem ela
+ *   nenhuma senha confere e será preciso recadastrar todas.
+ * Formato antigo (Base64 da senha no curso / texto puro no CONFIG) ainda é aceito para facilitar
+ * o cadastro manual: no primeiro login certo, a célula é regravada já com hash.
+ * Para converter tudo de uma vez, rode migrarSenhasParaHash() no editor.
+ */
+var PREFIXO_HASH_SENHA = 'sha256$';
+
+function pepperSenhas() {
+  var props = PropertiesService.getScriptProperties();
+  var pepper = props.getProperty('PEPPER_SENHAS');
+  if (!pepper) {
+    pepper = Utilities.getUuid() + Utilities.getUuid();
+    props.setProperty('PEPPER_SENHAS', pepper);
+  }
+  return pepper;
+}
+
+function hashSenha(sal, senha) {
+  var assinatura = Utilities.computeHmacSha256Signature(String(sal) + '|' + String(senha), pepperSenhas(), Utilities.Charset.UTF_8);
+  return PREFIXO_HASH_SENHA + Utilities.base64Encode(assinatura);
+}
+
+function ehHashSenha(valor) {
+  return String(valor).indexOf(PREFIXO_HASH_SENHA) === 0;
+}
+
+function conferirSenhaMestre(ss, senha, armazenada) {
+  if (!senha) return false;
+  if (ehHashSenha(armazenada)) return hashSenha('PROE', senha) === armazenada;
+  if (senha !== armazenada) return false;
+  ss.getSheetByName('CONFIG').getRange(1, 1).setValue(hashSenha('PROE', senha));
+  CacheService.getScriptCache().remove(CACHE_CONFIG_KEY);
+  return true;
+}
+
+// linha = linha de CURSOS já lida (hash, courseId, ...); indice = posição dela em getValues().
+function conferirSenhaCurso(ss, senha, linha, indice) {
+  var armazenada = String(linha[0] || '');
+  if (!senha || !armazenada || !linha[1]) return false;
+  if (ehHashSenha(armazenada)) return hashSenha(linha[1], senha) === armazenada;
+  if (Utilities.base64Encode(senha) !== armazenada) return false;
+  ss.getSheetByName('CURSOS').getRange(indice + 1, 1).setValue(hashSenha(linha[1], senha));
+  invalidarCacheCursos();
+  return true;
+}
+
+/** Rodar uma vez no editor: converte todas as senhas antigas da planilha para hash. */
+function migrarSenhasParaHash() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var cursos = ss.getSheetByName('CURSOS');
+  var dados = cursos.getDataRange().getValues();
+  var convertidas = 0;
+  for (var i = 1; i < dados.length; i++) {
+    var valor = String(dados[i][0] || '');
+    if (!valor || !dados[i][1] || ehHashSenha(valor)) continue;
+    var senha = Utilities.newBlob(Utilities.base64Decode(valor)).getDataAsString();
+    cursos.getRange(i + 1, 1).setValue(hashSenha(dados[i][1], senha));
+    convertidas++;
+  }
+  var config = ss.getSheetByName('CONFIG');
+  var mestre = String(config.getRange(1, 1).getValue());
+  if (mestre && !ehHashSenha(mestre)) {
+    config.getRange(1, 1).setValue(hashSenha('PROE', mestre));
+    convertidas++;
+  }
+  invalidarCacheCursos();
+  CacheService.getScriptCache().remove(CACHE_CONFIG_KEY);
+  Logger.log('Senhas convertidas para hash: ' + convertidas);
 }
 
 /**
@@ -579,11 +658,12 @@ function doPost(e) {
       var masterConfig = lerSenhaMestreComCache(ss);
       var cData = lerCursosComCache(ss);
 
-      if (data.password === masterConfig) {
+      if (conferirSenhaMestre(ss, data.password, masterConfig)) {
+        // Indexado pelo código do curso: a coluna A guarda a senha (hash) e nunca deve ir ao navegador.
         var courses = {};
         for (var r = 1; r < cData.length; r++) { // skip header
           if (cData[r][1]) {
-            courses[cData[r][0]] = cData[r][1] + '||' + cData[r][2];
+            courses[cData[r][1]] = cData[r][1] + '||' + cData[r][2];
           }
         }
         return ContentService.createTextOutput(JSON.stringify({
@@ -592,9 +672,8 @@ function doPost(e) {
         })).setMimeType(ContentService.MimeType.JSON);
       }
 
-      var inputHash = Utilities.base64Encode(data.password);
       for (var i = 1; i < cData.length; i++) {
-        if (cData[i][0] === inputHash) {
+        if (conferirSenhaCurso(ss, data.password, cData[i], i)) {
           return ContentService.createTextOutput(JSON.stringify({
               success: true,
               role: 'coordenador',
