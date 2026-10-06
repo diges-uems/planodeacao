@@ -25,8 +25,12 @@ const DIA_MS = 86_400_000;
 function parseDate(dStr: string | null | undefined): Date | null {
     if (!dStr) return null;
     if (/^\d{4}-\d{2}-\d{2}$/.test(dStr)) return new Date(dStr + "T00:00:00");
-    const parts = dStr.split('/');
-    if (parts.length === 3) return new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+    // dd/mm/aaaa ou dd/mm/aa (digitado à mão; "28/08/26" virava 1926), com ou sem hora depois.
+    const br = dStr.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\b/);
+    if (br) {
+        const ano = Number(br[3]) + (br[3].length === 2 ? 2000 : 0);
+        return new Date(ano, Number(br[2]) - 1, Number(br[1]));
+    }
     const d = new Date(dStr); // ISO com hora (ex.: dataReuniao)
     return isNaN(d.getTime()) ? null : d;
 }
@@ -73,7 +77,8 @@ function PrazoBar({ row }: { row: Fragility }) {
     const fim = parseDate(row.prazo);
     if (!fim || isFinalizado(row)) return null;
     const hoje = hojeMeiaNoite();
-    const inicio = parseDate(row.dataReuniao);
+    // Início = reunião que aprovou o plano; sem data ("A agendar"), 1º de janeiro do ano de referência.
+    const inicio = parseDate(row.dataReuniao) ?? (Number(row.ano) ? new Date(Number(row.ano), 0, 1) : null);
     const dias = Math.round((fim.getTime() - hoje.getTime()) / DIA_MS);
     const pct = inicio && fim > inicio
         ? Math.min(100, Math.max(0, ((hoje.getTime() - inicio.getTime()) / (fim.getTime() - inicio.getTime())) * 100))
