@@ -29,6 +29,12 @@ textos em português do Brasil.
 - **Segurança**: `doGet` devolve ao coordenador **só as linhas do próprio curso** (coluna C × `claims.courseId`,
   mesma comparação das escritas no `doPost`); `get_deadlines` só para PROE. Ações do `doPost` já checam papel/curso.
   Não volte a filtrar dados sensíveis só no navegador.
+- **Senhas**: `CURSOS!A` e `CONFIG!A1` guardam `sha256$` + HMAC-SHA256(pepper, `courseId|senha`) (`hashSenha`);
+  pepper em ScriptProperties `PEPPER_SENHAS` — **nunca apagar** (sem ele nenhuma senha confere). Migração feita em
+  06/10/2026 (64 cursos + PROE). Para trocar/cadastrar senha: escrever `btoa('senha')` na coluna A; vira hash no
+  primeiro login. Não dá para recuperar senha pela planilha.
+- **E-mails** (`generateEmailTemplate`): tabelas com estilo inline, delimitado por aspas simples — nunca usar aspas
+  simples dentro dos valores (nomes de fonte sem aspas), senão o Gmail descarta o estilo.
 - **Lentidão/instabilidade do Google**: o Apps Script responde 302 → `googleusercontent` e essa perna falha
   com 404/timeout de forma intermitente; respostas boas às vezes levam 10–20s. Não é o nosso código (execuções
   rodam em <1s). Mitigações em `src/lib/api.ts` (`fetchComRetry`): leituras com hedge (paralelas, 3s) e
@@ -50,7 +56,7 @@ textos em português do Brasil.
   e "Liberar edição". `handleToggleResponsavel(registro, idx, feito)` é o único caminho de gravação de responsável.
 - `ViewModal.tsx` = painel lateral de detalhe; `AcompanhamentoModal.tsx` = painel lateral de acompanhamento
   (ambos à direita, Esc fecha). `ActionForm.tsx` = formulário com seções 01–04, erros inline e lista para envio
-  lateral (revisão final continua no `CartModal`). Preenchimento demo automático só no curso "Teste".
+  lateral ("Revisar e enviar" abre o `ListaEnvioModal`: a lista sai da lateral para tela cheia via `layoutId`, editar troca de aba). Preenchimento demo automático só no curso "Teste".
 - Mockup/revisão visual de referência: https://claude.ai/artifact/NFQq8WRX2sbLVmf56pexeH
 
 ## Design system (src/index.css)
