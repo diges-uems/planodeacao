@@ -1044,8 +1044,9 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 isOpen={!!itemToDelete}
                 onClose={() => setItemToDelete(null)}
                 onConfirm={confirmDelete}
-                title="Confirmar exclusão?"
-                message="O registro será removido do painel permanentemente."
+                title="Excluir este registro?"
+                message="Ele sai do painel do curso e da PROE."
+                detalhe={itemToDelete?.fragilidade}
                 confirmText="Excluir"
                 isProcessing={isDeleting}
             />
