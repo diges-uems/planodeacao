@@ -3,13 +3,15 @@ import type { Fragility, User, Responsavel } from '../types';
 import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
 import { serializeResponsaveis, parseResponsaveis } from '../lib/utils';
-import { AlertCircle, Plus, X, Pencil, Trash2, Send } from 'lucide-react';
+import { lerPlanilha, baixarModelo } from '../lib/importarPlanilha';
+import { AlertCircle, Plus, X, Pencil, Trash2, Send, FileUp, Download, Loader2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface ActionFormProps {
     user: User;
     cart: Fragility[];
     onSaveToCart: (fragility: Fragility) => void;
+    onImportToCart: (itens: Fragility[]) => void;
     onEditCartItem: (idx: number) => void;
     onRemoveCartItem: (idx: number) => void;
     onReview: () => void;
@@ -93,7 +95,26 @@ function Campo({ id, rotulo, dica, erro, grupo, children }: { id: string; rotulo
     );
 }
 
-export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveCartItem, onReview, revisaoAberta, showAlert }: ActionFormProps) {
+function AvisoImportacao({ tom, titulo, itens, onFechar }: { tom: 'erro' | 'atencao'; titulo: string; itens: string[]; onFechar: () => void }) {
+    const cor = tom === 'erro'
+        ? { caixa: 'border-seal-nao-executada/40 bg-seal-nao-executada-bg', texto: 'text-seal-nao-executada' }
+        : { caixa: 'border-seal-pendente/40 bg-seal-pendente-bg', texto: 'text-seal-pendente' };
+    return (
+        <div role={tom === 'erro' ? 'alert' : 'status'} className={`rounded-md border px-3 py-3 flex flex-col gap-2 ${cor.caixa}`}>
+            <div className="flex items-start justify-between gap-2">
+                <span className={`text-xs font-semibold ${cor.texto}`}>{titulo}</span>
+                <button type="button" onClick={onFechar} aria-label="Fechar aviso da importação" className={`w-6 h-6 shrink-0 flex items-center justify-center rounded hover:bg-white/60 ${cor.texto}`}>
+                    <X className="w-3.5 h-3.5" />
+                </button>
+            </div>
+            <ul className="flex flex-col gap-1 max-h-48 overflow-y-auto text-xs text-ink leading-snug list-disc pl-4">
+                {itens.map((m, i) => <li key={i}>{m}</li>)}
+            </ul>
+        </div>
+    );
+}
+
+export function ActionForm({ user, cart, onSaveToCart, onImportToCart, onEditCartItem, onRemoveCartItem, onReview, revisaoAberta, showAlert }: ActionFormProps) {
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 6 }, (_, i) => currentYear - 1 + i);
 
@@ -117,6 +138,29 @@ export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveC
     const [outraFonteTexto, setOutraFonteTexto] = useState('');
     const [responsaveis, setResponsaveis] = useState<Responsavel[]>([{ nome: '', feito: false }]);
     const [erros, setErros] = useState<Partial<Record<CampoForm, string>>>({});
+    const [importando, setImportando] = useState(false);
+    const [errosImportacao, setErrosImportacao] = useState<string[]>([]);
+    const [avisosImportacao, setAvisosImportacao] = useState<string[]>([]);
+    const inputArquivoRef = useRef<HTMLInputElement>(null);
+
+    const handleArquivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const arquivo = e.target.files?.[0];
+        e.target.value = ''; // permite escolher o mesmo arquivo de novo depois de corrigir
+        if (!arquivo) return;
+        setImportando(true);
+        setErrosImportacao([]);
+        setAvisosImportacao([]);
+        try {
+            const { itens, erros, avisos } = await lerPlanilha(arquivo, user);
+            if (itens.length) onImportToCart(itens);
+            setErrosImportacao(erros);
+            setAvisosImportacao(avisos);
+        } catch {
+            setErrosImportacao(['Não foi possível ler o arquivo. Use .xlsx, .xls, .ods ou .csv.']);
+        } finally {
+            setImportando(false);
+        }
+    };
 
     const limparErro = (campo: CampoForm) => setErros(prev => {
         if (!prev[campo]) return prev;
@@ -532,6 +576,36 @@ export function ActionForm({ user, cart, onSaveToCart, onEditCartItem, onRemoveC
                         <Send className="w-4 h-4" /> Revisar e enviar
                     </button>
                     <p className="text-xs text-ink-muted leading-relaxed text-center">Nada é enviado à PROE até você confirmar na revisão.</p>
+                </div>
+                <div className="px-6 py-5 border-t border-rule flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                        <span className="text-[13px] font-semibold text-ink">Tem o plano numa planilha?</span>
+                        <span className="text-xs text-ink-muted leading-relaxed">Importe várias fragilidades de uma vez (.xlsx, .xls, .ods ou .csv). Elas entram nesta lista para você revisar.</span>
+                    </div>
+                    <input ref={inputArquivoRef} type="file" accept=".xlsx,.xls,.ods,.csv" onChange={handleArquivo} className="hidden" />
+                    <button type="button" onClick={() => inputArquivoRef.current?.click()} disabled={importando} className="h-11 rounded-md border border-uems-blue text-uems-blue hover:bg-[#F2F5FB] disabled:opacity-60 text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                        {importando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                        {importando ? 'Lendo planilha…' : 'Importar planilha'}
+                    </button>
+                    <button type="button" onClick={() => baixarModelo().catch(() => showAlert('Atenção', 'Não foi possível gerar o modelo. Tente de novo.'))} className="self-center h-9 px-2 text-[13px] font-semibold text-uems-blue underline-offset-2 hover:underline flex items-center gap-1.5">
+                        <Download className="w-4 h-4" /> Baixar modelo de planilha
+                    </button>
+                    {errosImportacao.length > 0 && (
+                        <AvisoImportacao
+                            tom="erro"
+                            titulo={`${errosImportacao.length === 1 ? '1 linha não foi importada' : `${errosImportacao.length} linhas não foram importadas`} — corrija e importe só elas de novo:`}
+                            itens={errosImportacao}
+                            onFechar={() => setErrosImportacao([])}
+                        />
+                    )}
+                    {avisosImportacao.length > 0 && (
+                        <AvisoImportacao
+                            tom="atencao"
+                            titulo="Importadas, mas confira na revisão (lápis para corrigir):"
+                            itens={avisosImportacao}
+                            onFechar={() => setAvisosImportacao([])}
+                        />
+                    )}
                 </div>
             </motion.aside>
             )}

@@ -127,6 +127,11 @@ export default function App() {
         setToastMsg('Fragilidade salva na lista.');
     };
 
+    const handleImportToCart = (items: Fragility[]) => {
+        setCart(prev => [...prev, ...items]);
+        setToastMsg(items.length === 1 ? '1 fragilidade importada para a lista.' : `${items.length} fragilidades importadas para a lista.`);
+    };
+
     const handleRemoveFromCart = (idx: number) => {
         setCart(prev => prev.filter((_, i) => i !== idx));
         if (cart.length <= 1) {
@@ -226,6 +231,7 @@ export default function App() {
                                     user={user}
                                     cart={cart}
                                     onSaveToCart={handleSaveToCart}
+                                    onImportToCart={handleImportToCart}
                                     onEditCartItem={handleEditCartItem}
                                     onRemoveCartItem={handleRemoveFromCart}
                                     onReview={() => setIsCartOpen(true)}
