@@ -176,86 +176,13 @@ export async function submitCart(cart: Fragility[], token: string): Promise<bool
     return false;
 }
 
-export async function deleteFragility(ano: string, curso: string, fragilidadeAntiga: string, codigoCurso: string, token: string, id?: string): Promise<boolean> {
-    try {
-        if (!API_URL) return false;
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
-
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'delete', ano, curso, fragilidadeAntiga, codigoCurso, id, token }),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        if (!response.ok) return false;
-        const data = await response.json();
-        return data.success === true;
-    } catch(e) {
-        console.error("Delete error:", e);
-        return false;
-    }
-}
-
-export async function updateFragility(
-    ano: string, 
-    curso: string, 
-    fragilidadeAntiga: string,
-    codigoCurso: string,
-    newData: Partial<Fragility>,
-    token: string,
-    id?: string
-): Promise<boolean> {
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 90000);
-
-        const response = await fetch(`${API_URL}?t=${Date.now()}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({
-                action: 'update',
-                ano,
-                curso,
-                fragilidadeAntiga,
-                codigoCurso,
-                newData,
-                id,
-                token
-            }),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        const data = await response.json();
-        return data.success === true;
-    } catch(e) {
-        console.error("Update error:", e);
-        return false;
-    }
-}
-
-export async function updateResponsavel(
-    ano: string,
-    curso: string,
-    fragilidadeAntiga: string,
-    codigoCurso: string,
-    responsavel: string,
-    token: string,
-    id?: string
-): Promise<boolean> {
+// Escrita com até 3 tentativas. Só para corpos seguros de repetir: valor absoluto ou com
+// opId, que o backend reconhece e responde sem gravar de novo.
+async function postComRetentativa(corpo: string, rotulo: string, timeoutMs = 45000): Promise<boolean> {
     if (!API_URL) return false;
-
-    // Grava a coluna inteira pelo id (valor absoluto), então repetir é seguro — no pior
-    // caso sai uma linha a mais no log. Sem retentativa, a falha intermitente do redirect
-    // do Apps Script virava "Falha ao atualizar responsável" com frequência.
-    const corpo = JSON.stringify({ action: 'update_responsavel', ano, curso, fragilidadeAntiga, codigoCurso, responsavel, id, token });
-
     for (let tentativa = 0; tentativa < 3; tentativa++) {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
         try {
             const response = await fetch(`${API_URL}?t=${Date.now()}`, {
                 method: 'POST',
@@ -273,15 +200,53 @@ export async function updateResponsavel(
                 return false;
             }
         } catch (e) {
-            console.error(`Update responsavel error (tentativa ${tentativa + 1}):`, e);
+            console.error(`${rotulo} (tentativa ${tentativa + 1}):`, e);
         } finally {
             clearTimeout(timeoutId);
         }
 
         if (tentativa < 2) await new Promise(r => setTimeout(r, 1500 * (tentativa + 1)));
     }
-
     return false;
+}
+
+const novoOpId = () => crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+
+// Edição e exclusão consomem a liberação de uso único. Sem opId, uma resposta perdida no
+// redirect virava "Falha" e a nova tentativa batia em "Edição não autorizada", embora a
+// alteração tivesse sido gravada. Com opId o backend reconhece a repetição.
+export async function deleteFragility(ano: string, curso: string, fragilidadeAntiga: string, codigoCurso: string, token: string, id?: string): Promise<boolean> {
+    const corpo = JSON.stringify({ action: 'delete', ano, curso, fragilidadeAntiga, codigoCurso, id, token, opId: novoOpId() });
+    return postComRetentativa(corpo, 'Delete error');
+}
+
+export async function updateFragility(
+    ano: string,
+    curso: string,
+    fragilidadeAntiga: string,
+    codigoCurso: string,
+    newData: Partial<Fragility>,
+    token: string,
+    id?: string
+): Promise<boolean> {
+    const corpo = JSON.stringify({ action: 'update', ano, curso, fragilidadeAntiga, codigoCurso, newData, id, token, opId: novoOpId() });
+    return postComRetentativa(corpo, 'Update error');
+}
+
+export async function updateResponsavel(
+    ano: string,
+    curso: string,
+    fragilidadeAntiga: string,
+    codigoCurso: string,
+    responsavel: string,
+    token: string,
+    id?: string
+): Promise<boolean> {
+    // Grava a coluna inteira pelo id (valor absoluto), então repetir é seguro — no pior
+    // caso sai uma linha a mais no log. Sem retentativa, a falha intermitente do redirect
+    // do Apps Script virava "Falha ao atualizar responsável" com frequência.
+    const corpo = JSON.stringify({ action: 'update_responsavel', ano, curso, fragilidadeAntiga, codigoCurso, responsavel, id, token });
+    return postComRetentativa(corpo, 'Update responsavel error', 30000);
 }
 
 export async function sendTestEmail(token: string): Promise<boolean> {

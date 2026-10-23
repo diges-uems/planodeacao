@@ -153,6 +153,33 @@ function formatarDataSegura(valor) {
 }
 
 /**
+ * Texto que começa com = + - @ vira fórmula no setValues. Uma fórmula como IMPORTXML ou
+ * IMAGE gravada por um usuário rodaria quando a PROE abrisse a aba e poderia mandar dados
+ * da planilha para fora. O apóstrofo inicial força texto e não aparece na célula nem no
+ * getValues(), então a leitura continua igual.
+ */
+function textoSeguro(valor) {
+  if (typeof valor === 'string' && /^[=+\-@]/.test(valor)) return "'" + valor;
+  return valor;
+}
+
+function linhasSeguras(linhas) {
+  return linhas.map(function(linha) { return linha.map(textoSeguro); });
+}
+
+/** Escapa texto de usuário antes de entrar no HTML dos e-mails. */
+function escHtml(valor) {
+  return String(valor === null || valor === undefined ? '' : valor)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/** Abas de dados são só as de ano (4 dígitos). Qualquer outro nome apontaria para abas administrativas. */
+function anoValido(ano) {
+  return /^\d{4}$/.test(String(ano === null || ano === undefined ? '' : ano));
+}
+
+/**
  * Lida com requisições HTTP GET.
  * Utilizado para a funcionalidade de buscar prazos internos (CONFIG_PRAZOS) e para
  * buscar todos os dados de fragilidades. Ambas exigem um token válido (?token=...).
@@ -239,13 +266,10 @@ function lerCursosComCache(ss) {
     try { return JSON.parse(bruto); } catch (e) { /* cache corrompido: relê da planilha */ }
   }
 
+  // Sem a aba, ninguém loga como coordenador. Antes ela era recriada com um curso Teste de
+  // senha conhecida (estava no código público) e edição liberada.
   var cursosSheet = ss.getSheetByName('CURSOS');
-  if (!cursosSheet) {
-    cursosSheet = ss.insertSheet('CURSOS');
-    cursosSheet.appendRow(['hash', 'courseId', 'courseName', 'Email', 'Liberado']);
-    cursosSheet.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#f1f5f9");
-    cursosSheet.appendRow(['dGVzdGU=', '00000001', 'Teste', 'enade@uems.br', 'SIM']);
-  }
+  if (!cursosSheet) return [];
 
   var cData = cursosSheet.getDataRange().getValues();
   // Datas/objetos não sobrevivem ao JSON do cache; estas colunas são todas texto.
@@ -261,11 +285,9 @@ function lerSenhaMestreComCache(ss) {
   var valor = cache.get(CACHE_CONFIG_KEY);
   if (valor !== null) return valor;
 
+  // Sem a aba, a PROE não loga. Antes ela era recriada com uma senha padrão escrita no código público.
   var configSheet = ss.getSheetByName('CONFIG');
-  if (!configSheet) {
-    configSheet = ss.insertSheet('CONFIG');
-    configSheet.appendRow(['uems2026', 'salt']);
-  }
+  if (!configSheet) return '';
   var senha = String(configSheet.getRange(1, 1).getValue());
   try { cache.put(CACHE_CONFIG_KEY, senha, CACHE_TTL_S); } catch (e) { /* segue sem cache */ }
   return senha;
@@ -452,7 +474,7 @@ function gravarLinhasDeLog(linhas) {
     sheet.setFrozenRows(1);
     sheet.setColumnWidth(6, 350);
   }
-  sheet.getRange(sheet.getLastRow() + 1, 1, linhas.length, 6).setValues(linhas);
+  sheet.getRange(sheet.getLastRow() + 1, 1, linhas.length, 6).setValues(linhasSeguras(linhas));
 }
 
 /**
@@ -481,6 +503,7 @@ function flushLogBuffer() {
  */
 function inserirRegistroEmTabelaCurso(nomeAba, curso, codigoCurso, headers, rowsToInsert) {
   if (!rowsToInsert || rowsToInsert.length === 0) return;
+  rowsToInsert = linhasSeguras(rowsToInsert);
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(nomeAba);
   if (!sheet) {
@@ -748,12 +771,12 @@ function doPost(e) {
         return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Curso não encontrado.' })).setMimeType(ContentService.MimeType.JSON);
       }
 
-      cursosSheet.getRange(linhaEncontrada, 4).setValue(email);
+      cursosSheet.getRange(linhaEncontrada, 4).setValue(textoSeguro(email));
 
       var courseNameAtual = cData[linhaEncontrada - 1][2];
       var match = (typeof matchCursoEmail === 'function') ? matchCursoEmail(courseNameAtual) : null;
       if (match && match.linha) {
-        ss.getSheetByName('CURSOS_EMAIL').getRange(match.linha, 4).setValue(email);
+        ss.getSheetByName('CURSOS_EMAIL').getRange(match.linha, 4).setValue(textoSeguro(email));
       }
 
       invalidarCacheCursos();
@@ -776,7 +799,7 @@ function doPost(e) {
         rows.push([k, data.deadlines[k]]);
       }
       if (rows.length > 0) {
-        sheet.getRange(1, 1, rows.length, 2).setValues(rows);
+        sheet.getRange(1, 1, rows.length, 2).setValues(linhasSeguras(rows));
       }
       registrarLog('reitoria', '', 'PROE', 'save_deadlines', rows.length + ' prazo(s) salvo(s).');
       return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
@@ -807,10 +830,10 @@ function doPost(e) {
           introducao = "Solicitamos a atualização do status da ação abaixo, que se encontra em andamento no sistema do Plano de Ação.";
       }
 
-      var detalhesHTML = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + curso + "</span></div>" +
-                         "<div class='detail-row'><span class='detail-label sans'>ID da Ação</span><span class='detail-value sans'>" + id + "</span></div>" +
-                         "<div class='detail-row'><span class='detail-label sans'>Fragilidade/Ação</span><span class='detail-value sans'>" + fragilidade + "</span></div>" +
-                         "<div class='detail-row'><span class='detail-label sans'>Responsável</span><span class='detail-value sans'>" + responsavel + "</span></div>";
+      var detalhesHTML = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + escHtml(curso) + "</span></div>" +
+                         "<div class='detail-row'><span class='detail-label sans'>ID da Ação</span><span class='detail-value sans'>" + escHtml(id) + "</span></div>" +
+                         "<div class='detail-row'><span class='detail-label sans'>Fragilidade/Ação</span><span class='detail-value sans'>" + escHtml(fragilidade) + "</span></div>" +
+                         "<div class='detail-row'><span class='detail-label sans'>Responsável</span><span class='detail-value sans'>" + escHtml(responsavel) + "</span></div>";
 
       var finalizacaoHTML = "<p style='margin-top: 20px; font-size: 14px; color: #334155; font-family: sans-serif;'>" +
                             "Por favor, acesse o sistema para atualizar o status e registrar os acompanhamentos necessários." +
@@ -907,7 +930,9 @@ function doPost(e) {
       var destinatarios = Array.isArray(data.destinatarios) ? data.destinatarios : [];
       var extras = Array.isArray(data.extras) ? data.extras : [];
 
-      var introducaoAlerta = mensagemCustom || ("O prazo para cadastro de fragilidades e planos de ação do seu curso no sistema está se encerrando" + (prazoTexto ? " em " + prazoTexto : "") + ". Acesse o sistema o quanto antes para concluir o preenchimento.");
+      var introducaoAlerta = mensagemCustom
+        ? escHtml(mensagemCustom).replace(/\n/g, '<br>')
+        : ("O prazo para cadastro de fragilidades e planos de ação do seu curso no sistema está se encerrando" + (prazoTexto ? " em " + escHtml(prazoTexto) : "") + ". Acesse o sistema o quanto antes para concluir o preenchimento.");
 
       var enviados = 0;
       var semEmail = [];
@@ -922,8 +947,8 @@ function doPost(e) {
           return;
         }
 
-        var detalhesAlerta = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + courseNameAlerta + "</span></div>" +
-                              (prazoTexto ? "<div class='detail-row'><span class='detail-label sans'>Prazo Final</span><span class='detail-value sans'>" + prazoTexto + "</span></div>" : "");
+        var detalhesAlerta = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + escHtml(courseNameAlerta) + "</span></div>" +
+                              (prazoTexto ? "<div class='detail-row'><span class='detail-label sans'>Prazo Final</span><span class='detail-value sans'>" + escHtml(prazoTexto) + "</span></div>" : "");
 
         enviarEmail(
           "[PROE/UEMS] Prazo de Cadastro se Encerrando",
@@ -941,7 +966,7 @@ function doPost(e) {
         var emailLimpo = String(emailExtra || '').trim();
         if (!emailLimpo) return;
 
-        var detalhesExtra = prazoTexto ? "<div class='detail-row'><span class='detail-label sans'>Prazo Final</span><span class='detail-value sans'>" + prazoTexto + "</span></div>" : "";
+        var detalhesExtra = prazoTexto ? "<div class='detail-row'><span class='detail-label sans'>Prazo Final</span><span class='detail-value sans'>" + escHtml(prazoTexto) + "</span></div>" : "";
 
         enviarEmail(
           "[PROE/UEMS] Prazo de Cadastro se Encerrando",
@@ -1009,6 +1034,14 @@ function doPost(e) {
         }
       }
 
+      // O ano vira nome de aba: sem esta checagem dava para gravar em CURSOS, CONFIG ou nas
+      // abas de auditoria (e inserirRegistroEmTabelaCurso ainda apaga colunas da aba alvo).
+      for (var ai = 0; ai < data.length; ai++) {
+        if (!anoValido(data[ai].ano)) {
+          return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Ano de referência inválido.' })).setMimeType(ContentService.MimeType.JSON);
+        }
+      }
+
       var lotes = {};
       var headers = ["ID", "Data/Hora", "Código", "Curso", "Ano", "Dimensão", "Fragilidade", "Fonte", "Conceito", "Ação", "Prazo", "Responsável", "Recursos", "Data da Reunião", "Minuta da Reunião", "Acompanhamentos"];
 
@@ -1033,7 +1066,7 @@ function doPost(e) {
       var cursosAfetadosStr = ""; // Para o resumo no email
 
       for (var ano in lotes) {
-        var cursosDesteAno = Object.keys(lotes[ano]).join(", ");
+        var cursosDesteAno = Object.keys(lotes[ano]).map(escHtml).join(", ");
         cursosAfetadosStr += "<div style='margin-bottom: 8px;'><strong style='font-weight: 500;'>" + ano + ":</strong> " + cursosDesteAno + "</div>";
 
         for (var curso in lotes[ano]) {
@@ -1062,7 +1095,7 @@ function doPost(e) {
                      var emailCurso = buscarEmailDoCurso(curso);
                      if (emailCurso && emailCurso.toLowerCase() !== "enade@uems.br") {
                          var qtd = lotes[ano][curso].length;
-                         var detalhesCur = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + curso + "</span></div>" +
+                         var detalhesCur = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + escHtml(curso) + "</span></div>" +
                                            "<div class='detail-row'><span class='detail-label sans'>Ano Ref.</span><span class='detail-value sans'>" + ano + "</span></div>" +
                                            "<div class='detail-row'><span class='detail-label sans'>Registros Inseridos</span><span class='detail-value sans'>" + qtd + "</span></div>";
                          agendarEmail(
@@ -1078,7 +1111,7 @@ function doPost(e) {
          }
       }
 
-      registrarLog(claims.role, claims.courseId, claims.courseName, 'envio_lote', registrosAdicionados + ' registro(s) inserido(s): ' + cursosAfetadosStr.replace(/<[^>]+>/g, ' ').trim());
+      registrarLog(claims.role, claims.courseId, claims.courseName, 'envio_lote', registrosAdicionados + ' registro(s) inserido(s): ' + cursosAfetadosStr.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim());
 
       // Marca o lote como processado ANTES de responder: se a resposta se perder no
       // caminho, a repetição com o mesmo loteId cai no atalho lá em cima em vez de
@@ -1092,7 +1125,12 @@ function doPost(e) {
     // 2. EDIÇÃO / EXCLUSÃO / ACOMPANHAMENTOS
     // =====================================================================
     if (data.action === "update" || data.action === "delete" || data.action === "add_acompanhamento" || data.action === "update_responsavel") {
-      var sheet = ss.getSheetByName(data.ano.toString());
+      // Repetição de uma edição/exclusão já feita (resposta perdida no redirect): responde
+      // sucesso antes do gate "Liberado", que a primeira tentativa já revogou.
+      if ((data.action === "update" || data.action === "delete") && operacaoJaProcessada(data.opId)) return respostaDuplicada();
+
+      if (!anoValido(data.ano)) return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Aba não encontrada.' })).setMimeType(ContentService.MimeType.JSON);
+      var sheet = ss.getSheetByName(String(data.ano));
       if (!sheet) return ContentService.createTextOutput(JSON.stringify({ success: false, message: 'Aba não encontrada.' })).setMimeType(ContentService.MimeType.JSON);
 
       var values = sheet.getDataRange().getValues();
@@ -1148,22 +1186,25 @@ function doPost(e) {
 
           sheet.deleteRow(rowIndex);
           revogarLiberacao(nomeCursoDaLinha);
-          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'delete', 'Registro #' + (data.id || 'antigo') + ' excluído: ' + data.fragilidadeAntiga);
+          marcarOperacaoProcessada(data.opId);
+          // Auditoria e e-mail usam a linha apagada, não o que o navegador mandou.
+          var idExcluido = linhaExcluida[0] || data.id || 'antigo';
+          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'delete', 'Registro #' + idExcluido + ' excluído: ' + linhaExcluida[6]);
 
           var headersExclusao = ["Data/Hora da Exclusão", "Código", "Curso", "Ano Ref.", "Dimensão", "Fragilidade", "Fonte", "Conceito", "Ação", "Data Final", "Responsável", "Recursos", "Data da Reunião", "Minuta da Reunião"];
-          inserirRegistroEmTabelaCurso("Exclusões", data.curso, data.codigoCurso, headersExclusao, [[
+          inserirRegistroEmTabelaCurso("Exclusões", nomeCursoDaLinha, codigoCursoDaLinha, headersExclusao, [[
             timestampExclusao, linhaExcluida[2], linhaExcluida[3], linhaExcluida[4], linhaExcluida[5], linhaExcluida[6], linhaExcluida[7], linhaExcluida[8], linhaExcluida[9], formatarDataSegura(linhaExcluida[10]), linhaExcluida[11], linhaExcluida[12], linhaExcluida[13] ? formatarDataSegura(linhaExcluida[13]) : "", linhaExcluida[14]
           ]]);
 
           // E-mail de Exclusão Enriquecido
-          var detalhesExclusao = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + data.curso + "</span></div>" +
-                                 "<div class='detail-row'><span class='detail-label sans'>Ano Ref.</span><span class='detail-value sans'>" + data.ano + "</span></div>" +
-                                 "<div class='detail-row'><span class='detail-label sans'>ID Registro</span><span class='detail-value sans'>#" + (data.id || "antigo") + "</span></div>" +
-                                 "<div class='detail-row'><span class='detail-label sans'>Registro Excluído</span><span class='detail-value sans'><i>" + data.fragilidadeAntiga + "</i></span></div>";
+          var detalhesExclusao = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + escHtml(nomeCursoDaLinha) + "</span></div>" +
+                                 "<div class='detail-row'><span class='detail-label sans'>Ano Ref.</span><span class='detail-value sans'>" + escHtml(data.ano) + "</span></div>" +
+                                 "<div class='detail-row'><span class='detail-label sans'>ID Registro</span><span class='detail-value sans'>#" + escHtml(idExcluido) + "</span></div>" +
+                                 "<div class='detail-row'><span class='detail-label sans'>Registro Excluído</span><span class='detail-value sans'><i>" + escHtml(linhaExcluida[6]) + "</i></span></div>";
           agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Excluído", "Um registro de plano de ação foi removido permanentemente do sistema.", detalhesExclusao, false);
 
           if (NOTIFICACOES_POR_CURSO_ATIVAS) {
-              var emailCurso = buscarEmailDoCurso(data.curso);
+              var emailCurso = buscarEmailDoCurso(nomeCursoDaLinha);
               if (emailCurso && emailCurso.toLowerCase() !== "enade@uems.br") {
                   agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Excluído", "Um registro de plano de ação do seu curso foi removido permanentemente do sistema.", detalhesExclusao, false, emailCurso);
               }
@@ -1172,40 +1213,44 @@ function doPost(e) {
 
         } else if (data.action === "update") {
           var p = data.newData;
+          // Lido antes de gravar: a auditoria registra o texto anterior que estava na planilha.
+          var linhaAntes = values[rowIndex - 1];
+          var idEditado = linhaAntes[0] || data.id || 'antigo';
           var updateRange = sheet.getRange(rowIndex, 6, 1, 10);
           sheet.getRange(rowIndex, 11, 1, 1).setNumberFormat("@");
           sheet.getRange(rowIndex, 14, 1, 1).setNumberFormat("@");
-          updateRange.setValues([[
+          updateRange.setValues(linhasSeguras([[
             p.tipo, p.fragilidade, p.fonte, p.conceito, p.acao, p.prazo, p.responsavel, p.recursos, p.dataReuniao, p.minutaReuniao
-          ]]);
+          ]]));
           updateRange.setWrap(true).setVerticalAlignment("middle");
 
           revogarLiberacao(nomeCursoDaLinha);
+          marcarOperacaoProcessada(data.opId);
 
           var timestampAcao = Utilities.formatDate(new Date(), "GMT-04:00", "dd/MM/yyyy HH:mm:ss");
           var headersAuditoria = ["Data/Hora da Alteração", "Código", "Curso", "Ano Ref.", "Dimensão", "Fragilidade (Nova)", "Fonte", "Conceito", "Ação", "Data Final", "Responsável", "Recursos", "Data da Reunião", "Minuta da Reunião", "Fragilidade Anterior"];
-          inserirRegistroEmTabelaCurso("Atualizações", data.curso, data.codigoCurso, headersAuditoria, [[
-            timestampAcao, data.codigoCurso, data.curso, data.ano, p.tipo, p.fragilidade, p.fonte, p.conceito, p.acao, p.prazo, p.responsavel, p.recursos, p.dataReuniao, p.minutaReuniao, data.fragilidadeAntiga
+          inserirRegistroEmTabelaCurso("Atualizações", nomeCursoDaLinha, codigoCursoDaLinha, headersAuditoria, [[
+            timestampAcao, codigoCursoDaLinha, nomeCursoDaLinha, linhaAntes[4], p.tipo, p.fragilidade, p.fonte, p.conceito, p.acao, p.prazo, p.responsavel, p.recursos, p.dataReuniao, p.minutaReuniao, linhaAntes[6]
           ]]);
 
           // E-mail de Edição Enriquecido
-          var detalhesEdicao = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + data.curso + "</span></div>" +
-                               "<div class='detail-row'><span class='detail-label sans'>Ano Ref.</span><span class='detail-value sans'>" + data.ano + "</span></div>" +
-                               "<div class='detail-row'><span class='detail-label sans'>ID Registro</span><span class='detail-value sans'>#" + (data.id || "antigo") + "</span></div>" +
-                               "<div class='detail-row'><span class='detail-label sans'>Fragilidade</span><span class='detail-value sans'>" + p.fragilidade + "</span></div>" +
-                               "<div class='detail-row'><span class='detail-label sans'>Ação Planejada</span><span class='detail-value sans'>" + p.acao + "</span></div>" +
-                               "<div class='detail-row'><span class='detail-label sans'>Data Final</span><span class='detail-value sans'>" + formatarDataSegura(p.prazo) + "</span></div>" +
-                               "<div class='detail-row'><span class='detail-label sans'>Data da Reunião</span><span class='detail-value sans'>" + (p.dataReuniao ? formatarDataSegura(p.dataReuniao) : "") + "</span></div>";
+          var detalhesEdicao = "<div class='detail-row'><span class='detail-label sans'>Curso</span><span class='detail-value sans'>" + escHtml(nomeCursoDaLinha) + "</span></div>" +
+                               "<div class='detail-row'><span class='detail-label sans'>Ano Ref.</span><span class='detail-value sans'>" + escHtml(data.ano) + "</span></div>" +
+                               "<div class='detail-row'><span class='detail-label sans'>ID Registro</span><span class='detail-value sans'>#" + escHtml(idEditado) + "</span></div>" +
+                               "<div class='detail-row'><span class='detail-label sans'>Fragilidade</span><span class='detail-value sans'>" + escHtml(p.fragilidade) + "</span></div>" +
+                               "<div class='detail-row'><span class='detail-label sans'>Ação Planejada</span><span class='detail-value sans'>" + escHtml(p.acao) + "</span></div>" +
+                               "<div class='detail-row'><span class='detail-label sans'>Data Final</span><span class='detail-value sans'>" + escHtml(formatarDataSegura(p.prazo)) + "</span></div>" +
+                               "<div class='detail-row'><span class='detail-label sans'>Data da Reunião</span><span class='detail-value sans'>" + escHtml(p.dataReuniao ? formatarDataSegura(p.dataReuniao) : "") + "</span></div>";
           agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Atualizado", "Um registro de plano de ação foi editado e atualizado no sistema com novas diretrizes.", detalhesEdicao, false);
 
           if (NOTIFICACOES_POR_CURSO_ATIVAS) {
-              var emailCurso = buscarEmailDoCurso(data.curso);
+              var emailCurso = buscarEmailDoCurso(nomeCursoDaLinha);
               if (emailCurso && emailCurso.toLowerCase() !== "enade@uems.br") {
                   agendarEmail("[PROE/UEMS] Aviso: Plano de Ação Atualizado", "Um registro de plano de ação do seu curso foi editado e atualizado no sistema com novas diretrizes.", detalhesEdicao, false, emailCurso);
               }
           }
 
-          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'update', 'Registro #' + (data.id || 'antigo') + ' editado: ' + p.fragilidade);
+          registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'update', 'Registro #' + idEditado + ' editado: ' + p.fragilidade);
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
         } else if (data.action === "add_acompanhamento") {
           // Repetir um acompanhamento duplicaria o histórico, então a retentativa do
@@ -1219,14 +1264,13 @@ function doPost(e) {
           }
           if (!Array.isArray(acompanhamentos)) acompanhamentos = [];
           acompanhamentos.push(data.acompanhamento);
-          sheet.getRange(rowIndex, 16).setValue(formatarAcompanhamentosParaTexto(acompanhamentos));
+          sheet.getRange(rowIndex, 16).setValue(textoSeguro(formatarAcompanhamentosParaTexto(acompanhamentos)));
 
+          // Prazo fica sempre na coluna K (11). Antes o índice vinha do cabeçalho da linha 1,
+          // mas nas abas de ano a linha 1 é o título "CURSO: …" da primeira tabela — o novo
+          // prazo nunca era gravado e voltava ao antigo ao recarregar.
           if (data.acompanhamento.novoPrazo) {
-            var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-            var idxPrazo = headers.indexOf("Prazo") !== -1 ? headers.indexOf("Prazo") + 1 : (headers.indexOf("Data Final") !== -1 ? headers.indexOf("Data Final") + 1 : 0);
-            if (idxPrazo > 0) {
-              sheet.getRange(rowIndex, idxPrazo).setNumberFormat("@").setValue(data.acompanhamento.novoPrazo);
-            }
+            sheet.getRange(rowIndex, 11).setNumberFormat("@").setValue(textoSeguro(String(data.acompanhamento.novoPrazo)));
           }
 
           marcarOperacaoProcessada(data.opId);
@@ -1236,7 +1280,7 @@ function doPost(e) {
           // Marcar se um responsável cumpriu o que foi acordado é acompanhamento, não edição
           // do plano — por isso não passa pelo gate "Liberado" nem revoga a liberação, igual
           // add_acompanhamento. Escreve só a coluna Responsável (12), nunca o resto da linha.
-          sheet.getRange(rowIndex, 12).setValue(data.responsavel || '');
+          sheet.getRange(rowIndex, 12).setValue(textoSeguro(data.responsavel || ''));
 
           registrarLog(claims.role, codigoCursoDaLinha, nomeCursoDaLinha, 'update_responsavel', 'Registro #' + (data.id || 'antigo') + ' — responsáveis: ' + (data.responsavel || ''));
           return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
@@ -1720,10 +1764,14 @@ function gerarIdRegistro() {
 function encontrarLinhaPorId(sheet, id, curso, fragilidadeAntiga) {
   var values = sheet.getDataRange().getValues();
 
-  if (id) {
+  // Com ID, só vale o ID. A busca por texto pegava a primeira linha com a mesma fragilidade,
+  // e com registros duplicados (já houve) alterava o registro errado. String() porque o Sheets
+  // guarda como número os IDs que saem só com dígitos.
+  if (id !== undefined && id !== null && id !== '') {
     for (var i = 0; i < values.length; i++) {
-      if (values[i][0] === id) return i + 1;
+      if (String(values[i][0]) === String(id)) return i + 1;
     }
+    return -1;
   }
 
   function normalizar(t) { return t ? t.toString().toLowerCase().trim().replace(/\s+/g, ' ') : ""; }
