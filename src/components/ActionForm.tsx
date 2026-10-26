@@ -4,7 +4,7 @@ import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
 import { serializeResponsaveis, parseResponsaveis } from '../lib/utils';
 import { lerPlanilha, baixarModelo } from '../lib/importarPlanilha';
-import { AlertCircle, Plus, X, Pencil, Trash2, Send, FileUp, Download, Loader2 } from 'lucide-react';
+import { AlertCircle, Plus, X, Pencil, Trash2, Send, FileUp, Download, Loader2, Undo2 } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface ActionFormProps {
@@ -12,6 +12,8 @@ interface ActionFormProps {
     cart: Fragility[];
     onSaveToCart: (fragility: Fragility) => void;
     onImportToCart: (itens: Fragility[]) => void;
+    nImportados: number;
+    onDesfazerImportacao: () => void;
     onEditCartItem: (idx: number) => void;
     onRemoveCartItem: (idx: number) => void;
     onReview: () => void;
@@ -114,7 +116,7 @@ function AvisoImportacao({ tom, titulo, itens, onFechar }: { tom: 'erro' | 'aten
     );
 }
 
-export function ActionForm({ user, cart, onSaveToCart, onImportToCart, onEditCartItem, onRemoveCartItem, onReview, revisaoAberta, showAlert }: ActionFormProps) {
+export function ActionForm({ user, cart, onSaveToCart, onImportToCart, nImportados, onDesfazerImportacao, onEditCartItem, onRemoveCartItem, onReview, revisaoAberta, showAlert }: ActionFormProps) {
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 6 }, (_, i) => currentYear - 1 + i);
 
@@ -581,12 +583,18 @@ export function ActionForm({ user, cart, onSaveToCart, onImportToCart, onEditCar
                     <div className="flex flex-col gap-1">
                         <span className="text-[13px] font-semibold text-ink">Tem o plano numa planilha?</span>
                         <span className="text-xs text-ink-muted leading-relaxed">Importe várias fragilidades de uma vez (.xlsx, .xls, .ods ou .csv). Elas entram nesta lista para você revisar.</span>
+                        <span className="text-xs text-ink-muted leading-relaxed">Vários responsáveis na mesma célula: separe com <strong className="font-semibold text-ink">ponto e vírgula (;)</strong>. Ex.: Coordenação; Colegiado</span>
                     </div>
                     <input ref={inputArquivoRef} type="file" accept=".xlsx,.xls,.ods,.csv" onChange={handleArquivo} className="hidden" />
                     <button type="button" onClick={() => inputArquivoRef.current?.click()} disabled={importando} className="h-11 rounded-md border border-uems-blue text-uems-blue hover:bg-[#F2F5FB] disabled:opacity-60 text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
                         {importando ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
                         {importando ? 'Lendo planilha…' : 'Importar planilha'}
                     </button>
+                    {nImportados > 0 && (
+                        <button type="button" onClick={() => { onDesfazerImportacao(); setErrosImportacao([]); setAvisosImportacao([]); }} className="h-11 rounded-md border border-rule text-ink-muted hover:text-seal-nao-executada hover:border-seal-nao-executada/40 hover:bg-seal-nao-executada-bg text-sm font-semibold flex items-center justify-center gap-2 transition-colors">
+                            <Undo2 className="w-4 h-4" /> Desfazer importação ({nImportados} {nImportados === 1 ? 'item' : 'itens'})
+                        </button>
+                    )}
                     <button type="button" onClick={() => baixarModelo().catch(() => showAlert('Atenção', 'Não foi possível gerar o modelo. Tente de novo.'))} className="self-center h-9 px-2 text-[13px] font-semibold text-uems-blue underline-offset-2 hover:underline flex items-center gap-1.5">
                         <Download className="w-4 h-4" /> Baixar modelo de planilha
                     </button>
