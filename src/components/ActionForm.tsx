@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { Fragility, User, Responsavel } from '../types';
 import { DIMENSIONS, SOURCES, OUTRA_FONTE_PREFIXO } from '../lib/constants';
 import { DatePickerInput } from './DatePickerInput';
+import { ConfirmModal } from './Modals';
 import { serializeResponsaveis, parseResponsaveis } from '../lib/utils';
 import { lerPlanilha, baixarModelo } from '../lib/importarPlanilha';
 import { AlertCircle, Plus, X, Pencil, Trash2, Send, FileUp, Download, Loader2, Undo2 } from 'lucide-react';
@@ -14,6 +15,7 @@ interface ActionFormProps {
     onImportToCart: (itens: Fragility[]) => void;
     nImportados: number;
     onDesfazerImportacao: () => void;
+    onEsvaziarLista: () => void;
     onEditCartItem: (idx: number) => void;
     onRemoveCartItem: (idx: number) => void;
     onReview: () => void;
@@ -116,7 +118,7 @@ function AvisoImportacao({ tom, titulo, itens, onFechar }: { tom: 'erro' | 'aten
     );
 }
 
-export function ActionForm({ user, cart, onSaveToCart, onImportToCart, nImportados, onDesfazerImportacao, onEditCartItem, onRemoveCartItem, onReview, revisaoAberta, showAlert }: ActionFormProps) {
+export function ActionForm({ user, cart, onSaveToCart, onImportToCart, nImportados, onDesfazerImportacao, onEsvaziarLista, onEditCartItem, onRemoveCartItem, onReview, revisaoAberta, showAlert }: ActionFormProps) {
     const currentYear = new Date().getFullYear();
     const years = Array.from({ length: 6 }, (_, i) => currentYear - 1 + i);
 
@@ -143,6 +145,7 @@ export function ActionForm({ user, cart, onSaveToCart, onImportToCart, nImportad
     const [importando, setImportando] = useState(false);
     const [errosImportacao, setErrosImportacao] = useState<string[]>([]);
     const [avisosImportacao, setAvisosImportacao] = useState<string[]>([]);
+    const [confirmarEsvaziar, setConfirmarEsvaziar] = useState(false);
     const inputArquivoRef = useRef<HTMLInputElement>(null);
 
     const handleArquivo = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -578,6 +581,11 @@ export function ActionForm({ user, cart, onSaveToCart, onImportToCart, nImportad
                         <Send className="w-4 h-4" /> Revisar e enviar
                     </button>
                     <p className="text-xs text-ink-muted leading-relaxed text-center">Nada é enviado à PROE até você confirmar na revisão.</p>
+                    {cart.length > 0 && (
+                        <button type="button" onClick={() => setConfirmarEsvaziar(true)} className="self-center h-9 px-2 text-[13px] font-semibold text-ink-muted hover:text-seal-nao-executada flex items-center gap-1.5 transition-colors">
+                            <Trash2 className="w-4 h-4" /> Esvaziar lista
+                        </button>
+                    )}
                 </div>
                 <div className="px-6 py-5 border-t border-rule flex flex-col gap-3">
                     <div className="flex flex-col gap-1">
@@ -617,6 +625,14 @@ export function ActionForm({ user, cart, onSaveToCart, onImportToCart, nImportad
                 </div>
             </motion.aside>
             )}
+            <ConfirmModal
+                isOpen={confirmarEsvaziar}
+                onClose={() => setConfirmarEsvaziar(false)}
+                onConfirm={() => { setConfirmarEsvaziar(false); onEsvaziarLista(); setErrosImportacao([]); setAvisosImportacao([]); }}
+                title="Esvaziar a lista?"
+                message={`${cart.length === 1 ? 'O item da lista para envio será removido.' : `Os ${cart.length} itens da lista para envio serão removidos, inclusive os digitados à mão.`} Nada que já foi enviado à PROE é afetado.`}
+                confirmText="Esvaziar lista"
+            />
         </div>
     );
 }
