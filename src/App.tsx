@@ -39,6 +39,18 @@ function lerLista(user: User | null): Fragility[] {
     } catch { return []; }
 }
 
+// Quais itens da lista vieram de planilha: array de true/false na mesma ordem da lista,
+// numa chave à parte para não ir junto no envio. Permite "Desfazer importação" após recarregar.
+const chaveImportados = (courseId: string) => `lista-envio-${courseId}-importados`;
+
+function lerImportados(lista: Fragility[], user: User | null): Set<Fragility> {
+    if (!user?.courseId) return new Set();
+    try {
+        const flags = JSON.parse(localStorage.getItem(chaveImportados(user.courseId)) || '[]');
+        return new Set(Array.isArray(flags) ? lista.filter((_, i) => flags[i] === true) : []);
+    } catch { return new Set(); }
+}
+
 function salvarSessao(s: SessaoSalva | null) {
     try {
         if (s) sessionStorage.setItem(SESSAO_KEY, JSON.stringify(s));
@@ -51,7 +63,11 @@ export default function App() {
     const [view, setView] = useState<ViewState>(sessaoInicial?.view ?? 'login');
     const [user, setUser] = useState<User | null>(sessaoInicial?.user ?? null);
     const ultimaAtividade = useRef(Date.now());
-    const [cart, setCart] = useState<Fragility[]>(() => lerLista(sessaoInicial?.user ?? null));
+    const [listaInicial] = useState(() => lerLista(sessaoInicial?.user ?? null));
+    const [cart, setCart] = useState<Fragility[]>(listaInicial);
+    // Itens que vieram de planilha (pela referência do objeto), para "Desfazer importação"
+    // tirar só eles e manter o que foi preenchido à mão.
+    const importados = useRef(lerImportados(listaInicial, sessaoInicial?.user ?? null));
     
     // Modal states
     const [isCartOpen, setIsCartOpen] = useState(false);
@@ -73,7 +89,9 @@ export default function App() {
 
     const handleLogin = (u: User) => {
         setUser(u);
-        setCart(lerLista(u));
+        const lista = lerLista(u);
+        importados.current = lerImportados(lista, u);
+        setCart(lista);
         if (u.role === 'coordenador' && u.emailRegistrado === false) {
             setShowEmailModal(true);
         }
@@ -88,6 +106,7 @@ export default function App() {
     const handleLogout = () => {
         setUser(null);
         setView('login');
+        importados.current = new Set();
         setCart([]);
     };
 
@@ -98,8 +117,11 @@ export default function App() {
     useEffect(() => {
         if (!user || user.role !== 'coordenador') return;
         try {
+            const flags = cart.map(i => importados.current.has(i));
             if (cart.length) localStorage.setItem(chaveLista(user.courseId), JSON.stringify(cart));
             else localStorage.removeItem(chaveLista(user.courseId));
+            if (flags.some(Boolean)) localStorage.setItem(chaveImportados(user.courseId), JSON.stringify(flags));
+            else localStorage.removeItem(chaveImportados(user.courseId));
         } catch { /* storage indisponível: lista fica só na memória */ }
     }, [cart, user]);
 
@@ -127,9 +149,6 @@ export default function App() {
         setToastMsg('Fragilidade salva na lista.');
     };
 
-    // Itens que vieram de planilha (pela referência do objeto), para "Desfazer importação"
-    // tirar só eles e manter o que foi preenchido à mão. Vale até recarregar a página.
-    const importados = useRef(new Set<Fragility>());
     const nImportados = cart.filter(i => importados.current.has(i)).length;
 
     const handleImportToCart = (items: Fragility[]) => {
@@ -146,6 +165,14 @@ export default function App() {
         setIsCartOpen(false);
         setEditIdx(null);
         setToastMsg('Importação desfeita: itens da planilha removidos da lista.');
+    };
+
+    const handleEsvaziarLista = () => {
+        importados.current = new Set();
+        setCart([]);
+        setIsCartOpen(false);
+        setEditIdx(null);
+        setToastMsg('Lista esvaziada.');
     };
 
     const handleRemoveFromCart = (idx: number) => {
@@ -255,6 +282,7 @@ export default function App() {
                                     onImportToCart={handleImportToCart}
                                     nImportados={nImportados}
                                     onDesfazerImportacao={handleDesfazerImportacao}
+                                    onEsvaziarLista={handleEsvaziarLista}
                                     onEditCartItem={handleEditCartItem}
                                     onRemoveCartItem={handleRemoveFromCart}
                                     onReview={() => setIsCartOpen(true)}
