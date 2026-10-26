@@ -127,9 +127,25 @@ export default function App() {
         setToastMsg('Fragilidade salva na lista.');
     };
 
+    // Itens que vieram de planilha (pela referência do objeto), para "Desfazer importação"
+    // tirar só eles e manter o que foi preenchido à mão. Vale até recarregar a página.
+    const importados = useRef(new Set<Fragility>());
+    const nImportados = cart.filter(i => importados.current.has(i)).length;
+
     const handleImportToCart = (items: Fragility[]) => {
+        items.forEach(i => importados.current.add(i));
         setCart(prev => [...prev, ...items]);
         setToastMsg(items.length === 1 ? '1 fragilidade importada para a lista.' : `${items.length} fragilidades importadas para a lista.`);
+    };
+
+    const handleDesfazerImportacao = () => {
+        // Copia antes de limpar: o updater do setCart só roda depois, na renderização.
+        const remover = new Set(importados.current);
+        importados.current.clear();
+        setCart(prev => prev.filter(i => !remover.has(i)));
+        setIsCartOpen(false);
+        setEditIdx(null);
+        setToastMsg('Importação desfeita: itens da planilha removidos da lista.');
     };
 
     const handleRemoveFromCart = (idx: number) => {
@@ -152,7 +168,12 @@ export default function App() {
 
     const handleSaveCartEdit = (newData: Partial<Fragility>) => {
         if (editIdx === null) return;
-        setCart(prev => prev.map((item, i) => i === editIdx ? { ...item, ...newData } as Fragility : item));
+        setCart(prev => prev.map((item, i) => {
+            if (i !== editIdx) return item;
+            const editado = { ...item, ...newData } as Fragility;
+            if (importados.current.delete(item)) importados.current.add(editado); // continua sendo da planilha
+            return editado;
+        }));
         setEditIdx(null);
         setToastMsg('Item atualizado na lista.');
     };
@@ -232,6 +253,8 @@ export default function App() {
                                     cart={cart}
                                     onSaveToCart={handleSaveToCart}
                                     onImportToCart={handleImportToCart}
+                                    nImportados={nImportados}
+                                    onDesfazerImportacao={handleDesfazerImportacao}
                                     onEditCartItem={handleEditCartItem}
                                     onRemoveCartItem={handleRemoveFromCart}
                                     onReview={() => setIsCartOpen(true)}
