@@ -3,7 +3,7 @@ import { fetchDashboardData, deleteFragility, updateFragility, updateResponsavel
 import { generatePdfHtml, sanitizeSearch, parseResponsaveis, serializeResponsaveis } from '../lib/utils';
 import { DIMENSIONS } from '../lib/constants';
 import type { Fragility, User, Acompanhamento } from '../types';
-import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Database, Mail, ClipboardList, Unlock, BellRing, Info, Check, MoreHorizontal, ArrowRight } from 'lucide-react';
+import { FileDown, RefreshCw, Plus, LogOut, Edit2, Trash2, Search, Database, Mail, ClipboardList, Unlock, BellRing, Info, Check, MoreHorizontal, ArrowRight, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { ConfirmModal, MissingCoursesModal } from './Modals';
 import { EditModal } from './EditModal';
 import { AcompanhamentoModal } from './AcompanhamentoModal';
@@ -118,6 +118,8 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
     const [selectedDimensao, setSelectedDimensao] = useState('');
     const [searchCourse, setSearchCourse] = useState('');
     const [selectedUnit, setSelectedUnit] = useState('');
+    // PROE: ordenação pelo prazo ao clicar no cabeçalho; null mantém a ordem da planilha.
+    const [ordemPrazo, setOrdemPrazo] = useState<'asc' | 'desc' | null>(null);
     const [showAutocomplete, setShowAutocomplete] = useState(false);
     
     const [deadlineUnit, setDeadlineUnit] = useState<string>('');
@@ -290,10 +292,19 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                 return parseDate(d.prazo)?.getTime() ?? Number.MAX_SAFE_INTEGER;
             };
             filtered = [...filtered].sort((a, b) => chave(a) - chave(b));
+        } else if (ordemPrazo) {
+            // Sem prazo legível fica no fim nas duas direções.
+            const sinal = ordemPrazo === 'asc' ? 1 : -1;
+            filtered = [...filtered].sort((a, b) => {
+                const ta = parseDate(a.prazo)?.getTime();
+                const tb = parseDate(b.prazo)?.getTime();
+                if (ta === undefined || tb === undefined) return (ta === undefined ? 1 : 0) - (tb === undefined ? 1 : 0);
+                return (ta - tb) * sinal;
+            });
         }
 
         return filtered;
-    }, [data, user, isProe, searchCourse, selectedDimensao, selectedAno, selectedUnit]);
+    }, [data, user, isProe, searchCourse, selectedDimensao, selectedAno, selectedUnit, ordemPrazo]);
 
     // Filtro por prazo: só no painel do coordenador; a PROE vê filteredData inteiro.
     const [filtroPrazo, setFiltroPrazo] = useState<'todos' | CategoriaPrazo>('todos');
@@ -932,7 +943,19 @@ export function Dashboard({ user, onNewRecord, onLogout, onEdit, onShowAlert, on
                                 <th className="w-[184px]">Status</th>
                                 <th className="w-[200px]">Curso</th>
                                 <th>Fragilidade e ação</th>
-                                <th className="w-[190px]">Prazo</th>
+                                <th className="w-[190px]" aria-sort={ordemPrazo === 'asc' ? 'ascending' : ordemPrazo === 'desc' ? 'descending' : 'none'}>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setOrdemPrazo(o => o === 'asc' ? 'desc' : 'asc'); setCurrentPage(1); }}
+                                        title={ordemPrazo === 'asc' ? 'Ordenar do prazo mais distante ao mais próximo' : 'Ordenar do prazo mais próximo ao mais distante'}
+                                        className="inline-flex items-center gap-1.5 uppercase tracking-[inherit] font-[inherit] text-[inherit] hover:text-uems-blue cursor-pointer"
+                                    >
+                                        Prazo
+                                        {ordemPrazo === 'asc' ? <ArrowUp className="w-3.5 h-3.5" aria-hidden="true" />
+                                            : ordemPrazo === 'desc' ? <ArrowDown className="w-3.5 h-3.5" aria-hidden="true" />
+                                            : <ArrowUpDown className="w-3.5 h-3.5 opacity-50" aria-hidden="true" />}
+                                    </button>
+                                </th>
                                 <th className="w-[170px] text-right">Ações</th>
                             </tr>
                         </thead>
