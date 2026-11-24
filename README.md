@@ -48,7 +48,7 @@ Navegador (React + Vite, GitHub Pages)  ──fetch──▶  Google Apps Script
 
 - **Frontend**: React 19, TypeScript, Vite 6, Tailwind CSS v4, `lucide-react` (ícones), `motion` (animações) e
   `xlsx` (importação de planilhas, carregado só quando necessário). Site estático, sem servidor próprio.
-- **Backend**: Google Apps Script (`gas/Code.gs`, funções `doGet`/`doPost`), executado como a conta
+- **Backend**: Google Apps Script (funções `doGet`/`doPost`; código fora deste repositório público), executado como a conta
   institucional do projeto. A **planilha do Google Sheets é o banco de dados**.
 - **Autenticação**: o login devolve um token assinado (HMAC, válido por 12 h) com o papel (`reitoria` ou
   `coordenador`) e o curso. Toda chamada exige o token; o backend devolve ao coordenador apenas os registros do
