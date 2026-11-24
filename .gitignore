@@ -4,3 +4,6 @@ dist
 .DS_Store
 .impeccable
 .tmp-favicon
+
+# Código Apps Script não vai para o repositório público
+gas/

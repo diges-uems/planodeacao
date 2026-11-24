@@ -78,7 +78,6 @@ Documentação detalhada: [SPEC.md](./SPEC.md) (modelo de dados, API, regras de 
 │   │   └── utils.ts         datas, responsáveis, acompanhamentos
 │   ├── index.css            tema (tokens de cor e fontes da UEMS)
 │   └── types.ts
-├── gas/Code.gs              código do backend (cópia de registro; vale o que está publicado)
 ├── public/                  imagens, favicons e manifesto
 ├── .github/workflows/deploy.yml   publicação no GitHub Pages
 ├── SPEC.md · HANDOVER.md · SECURITY.md · PRODUCT.md · CLAUDE.md · AGENTS.md
@@ -126,7 +125,8 @@ use o curso "Teste".
 - **Frontend**: todo push na branch `main` dispara o GitHub Actions (`.github/workflows/deploy.yml`:
   `npm ci` → `npm run build` → GitHub Pages) e o site atualiza em 1–2 minutos. Também pode ser disparado
   manualmente (`workflow_dispatch`).
-- **Backend** (manual): o `gas/Code.gs` do repositório é só registro. Para publicar uma alteração, abra o
+- **Backend** (manual): por segurança, o código do Apps Script **não fica neste repositório público**
+  (a pasta `gas/` está no `.gitignore`). Para publicar uma alteração, abra o
   projeto [plano-de-acao-uems-backend](https://script.google.com/d/1T0B6kJbu_DMjw5aeLJ7bGWSVpcY_24XDxSJqiHluQCGEgPdV8GT_rn8m/edit)
   (conta institucional da DIGES/PROE; também gerenciável via `clasp`), atualize o código e
   vá em *Implantar → Gerenciar implantações → lápis na implantação em uso → Versão: Nova versão*.
